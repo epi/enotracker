@@ -1,7 +1,30 @@
+/**
+	Pattern editor.
+
+	Copyright:
+	This file is part of enotracker $(LINK https://github.com/epi/enotracker)
+	Copyright (C) 2014 Adrian Matoga
+
+	enotracker is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	enotracker is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with enotracker.  If not, see $(LINK http://www.gnu.org/licenses/).
+*/
+
 module pattern;
 
+import std.algorithm;
 import std.conv;
 
+import player;
 import subwindow;
 import textrender;
 import tmc;
@@ -81,11 +104,11 @@ class PatternEditor : SubWindow
 			case 0:
 				r = Range(0, 6); break;
 			case 1:
-				r = Range(7, 8); break;
-			case 2:
 				r = Range(8, 9); break;
-			case 3:
+			case 2:
 				r = Range(9, 10); break;
+			case 3:
+				r = Range(10, 11); break;
 		}
 		uint pattn = _tmc.song[_songLine][chn].pattn;
 		_tw.textf(
@@ -148,7 +171,27 @@ class PatternEditor : SubWindow
 		draw();
 	}
 
+	void update(uint sl, uint pl)
+	{
+		if (sl != _songLine || pl != _pattLine)
+		{
+			_songLine = sl;
+			_pattLine = pl;
+			draw();
+		}
+	}
+
+	void drawBars(T)(in T[] chnvol)
+	{
+		foreach (i, vol; chnvol)
+		{
+			_tw.bar(cast(uint) i * 12 + 10, _centerLine + 1, vol, Color.Bar,
+				_active ? Color.ActiveBg : Color.InactiveBg);
+		}
+	}
+
 	@property void tmc(TmcFile t) { _tmc = t; }
+	@property void player(Player p) { _player = p; }
 
 private:
 	enum Color
@@ -162,6 +205,7 @@ private:
 		InactiveHighlightBg = 0x282830,
 		ActiveOuterFg = 0xa0a0b0,
 		InactiveOuterFg = 0x606060,
+		Bar = 0xe0c040,
 	}
 
 	TextWindow _tw;
@@ -171,6 +215,7 @@ private:
 	uint _maxLines;
 	uint _centerLine;
 	TmcFile _tmc;
+	Player _player;
 	uint _cursorX;
 	bool _active;
 }

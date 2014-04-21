@@ -1,17 +1,40 @@
+/**
+	Entry point for enotracker.
+
+	Copyright:
+	This file is part of enotracker $(LINK https://github.com/epi/enotracker)
+	Copyright (C) 2014 Adrian Matoga
+
+	enotracker is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	enotracker is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with enotracker.  If not, see $(LINK http://www.gnu.org/licenses/).
+*/
+
 import std.file;
 import std.stdio;
 
-import sdl;
-import tmc;
-import textrender;
+import asap;
 import pattern;
+import player;
+import sdl;
 import song;
 import subwindow;
+import textrender;
+import tmc;
 
 enum ScreenSize
 {
-	width = 1024,
-	height = 768,
+	width = 808,
+	height = 600,
 }
 
 void main(string[] args)
@@ -36,16 +59,16 @@ void main(string[] args)
 	tr.fgcolor = 0xFFFFFF;
 	tr.bgcolor = 0x000000;
 
-	tr.text(0, 0, "Theta Music Composer 1X11");
+	tr.text(1, 1, "enotracker 0.0.1 by epi/Tristesse");
 
 	SubWindow[] windows;
 
-	auto se = new SongEditor(tr, 48, 2, 20);
+	auto se = new SongEditor(tr, 48, 3, 20);
 	se.tmc = tmc;
 	se.draw();
 	windows ~= se;
 
-	auto pe = new PatternEditor(tr, 1, 23, 48);
+	auto pe = new PatternEditor(tr, 1, 24, 48);
 	pe.tmc = tmc;
 	windows ~= pe;
 
@@ -58,6 +81,14 @@ void main(string[] args)
 	windows[activeWindow].activate();
 
 	screen.flip();
+
+	auto player = new Player;
+	scope(exit) player.close();
+	player.start();
+	player.tmc = tmc;
+
+	se.player = player;
+	pe.player = player;
 
 	SDL_EnableKeyRepeat(500, 30);
 	for (;;)
@@ -77,9 +108,26 @@ void main(string[] args)
 					windows[activeWindow].activate();
 					screen.flip();
 				}
+				else if (event.key.keysym.sym == SDLKey.SDLK_ESCAPE)
+				{
+					player.stop();
+					ubyte[8] zeroChnVol;
+					pe.drawBars(zeroChnVol[]);
+					screen.flip();
+				}
 				else if (windows[activeWindow].key(event.key.keysym.sym, event.key.keysym.mod))
 					screen.flip();
 				break;
+			case SDL_EventType.SDL_USEREVENT:
+			{
+				auto fevent = cast(const(ASAPFrameEvent)*) &event;
+				se.update(fevent.songPosition);
+				pe.update(fevent.songPosition, fevent.patternPosition);
+				pe.drawBars(fevent.channelVolumes);
+				screen.flip();
+				stderr.writef("%02X.%02X\r", fevent.songPosition, fevent.patternPosition);
+				break;
+			}
 			default:
 				break;
 			}

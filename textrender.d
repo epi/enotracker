@@ -1,3 +1,24 @@
+/**
+	Draw text and boxes using SDL.
+
+	Copyright:
+	This file is part of enotracker $(LINK https://github.com/epi/enotracker)
+	Copyright (C) 2014 Adrian Matoga
+
+	enotracker is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	enotracker is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with enotracker.  If not, see $(LINK http://www.gnu.org/licenses/).
+*/
+
 module textrender;
 
 import std.string;
@@ -133,6 +154,17 @@ struct TextWindow
 	{
 		_tr.box(_xo + x, _yo + y, w, h, col);
 	}
+
+	void bar(uint x, uint y, uint vol, uint colbar, uint colbak)
+	{
+		_tr._surface.fillRect(SDL_Rect(
+			cast(ushort) ((_xo + x) * 8 + 4), cast(ushort) ((_yo + y) * 8 - 15 * 4),
+			8, cast(ushort) ((15 - vol) * 4)), colbak);
+		_tr._surface.fillRect(SDL_Rect(
+			cast(ushort) ((_xo + x) * 8 + 4), cast(ushort) ((_yo + y) * 8 - vol * 4),
+			8, cast(ushort) (vol * 4)), colbar);
+	}
+
 
 	@property void fgcolor(uint fg) { _tr.fgcolor = fg; }
 	@property uint fgcolor() const { return _tr.fgcolor; }

@@ -1,3 +1,24 @@
+/**
+	SDL bindings.
+
+	Copyright:
+	This file is part of enotracker $(LINK https://github.com/epi/enotracker)
+	Copyright (C) 2014 Adrian Matoga
+
+	enotracker is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	enotracker is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with enotracker.  If not, see $(LINK http://www.gnu.org/licenses/).
+*/
+
 import std.stdio;
 import std.string;
 import std.typecons;
@@ -672,6 +693,14 @@ struct SDL_KeyboardEvent
 	SDL_keysym keysym;
 }
 
+struct SDL_UserEvent
+{
+	ubyte type;
+	int   code;
+	void* data1;
+	void* data2;
+}
+
 union SDL_Event
 {
 	ubyte type;
@@ -687,7 +716,7 @@ union SDL_Event
 //	SDL_ExposeEvent expose;
 	SDL_QuitEvent quit;
 	SDL_FakeEvent fake;
-//	SDL_UserEvent user;
+	SDL_UserEvent user;
 //	SDL_SysWMEvent syswm;
 }
 
@@ -697,6 +726,93 @@ int SDL_WaitEvent(SDL_Event* event);
 extern (C)
 int SDL_PollEvent(SDL_Event* event);
 
+extern (C)
+int SDL_PushEvent(SDL_Event *event);
+
 extern(C)
 int SDL_EnableKeyRepeat(int delay, int interval);
+
+enum SDL_AudioFormat : ushort
+{
+	AUDIO_U8     = 0x0008,	/**< Unsigned 8-bit samples */
+	AUDIO_S8     = 0x8008,	/**< Signed 8-bit samples */
+	AUDIO_U16LSB = 0x0010,	/**< Unsigned 16-bit samples */
+	AUDIO_S16LSB = 0x8010,	/**< Signed 16-bit samples */
+	AUDIO_U16MSB = 0x1010,	/**< As above, but big-endian byte order */
+	AUDIO_S16MSB = 0x9010,	/**< As above, but big-endian byte order */
+	AUDIO_U16    = AUDIO_U16LSB,
+	AUDIO_S16    = AUDIO_S16LSB,
+}
+
+private struct SDL_AudioSpec
+{
+	int freq;		/**< DSP frequency -- samples per second */
+	ushort format;		/**< Audio data format */
+	ubyte  channels;	/**< Number of channels: 1 mono, 2 stereo */
+	ubyte  silence;		/**< Audio buffer silence value (calculated) */
+	ushort samples;		/**< Audio buffer size in samples (power of 2) */
+	ushort padding;		/**< Necessary for some compile environments */
+	uint size;		/**< Audio buffer size in bytes (calculated) */
+	/**
+	 *  This function is called when the audio device needs more data.
+	 *
+	 *  @param[out] stream	A pointer to the audio data buffer
+	 *  @param[in]  len	The length of the audio buffer in bytes.
+	 *
+	 *  Once the callback returns, the buffer will no longer be valid.
+	 *  Stereo samples are stored in a LRLRLR ordering.
+	 */
+	extern (C)
+	void function(void* userdata, ubyte* stream, int len) callback;
+	void* userdata;
+}
+
+private extern (C)
+int SDL_OpenAudio(SDL_AudioSpec* desired, SDL_AudioSpec* obtained);
+
+private extern (C)
+void SDL_PauseAudio(int pause_on);
+
+private extern (C)
+void SDL_CloseAudio();
+
+class Audio
+{
+	import core.sys.posix.pthread;
+
+	this(int freq, SDL_AudioFormat format, int channels, int samples,
+		void delegate(ubyte[] stream) del)
+	{
+		SDL_AudioSpec spec;
+		spec.freq = freq;
+		spec.format = format;
+		spec.channels = cast(ubyte) channels;
+		spec.samples = cast(ushort) samples;
+		spec.callback = &callback;
+		spec.userdata = cast(void*) this;
+		_delegate = del;
+		if (SDL_OpenAudio(&spec, null) < 0)
+			throw new Exception("Could not open audio");
+	}
+
+	void play()
+	{
+		SDL_PauseAudio(0);
+	}
+
+	void close()
+	{
+		SDL_CloseAudio();
+	}
+
+private:
+	extern(C)
+	static void callback(void* userdata, ubyte* stream, int len)
+	{
+		auto self = cast(Audio) userdata;
+		self._delegate(stream[0 .. len]);
+	}
+
+	void delegate(ubyte[] stream) _delegate;
+}
 

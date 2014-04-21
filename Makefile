@@ -1,4 +1,4 @@
-src := main.d tmc.d sdl.d textrender.d pattern.d song.d subwindow.d
+src := main.d tmc.d sdl.d textrender.d pattern.d song.d subwindow.d asap.d player.d
 
 xtmc: $(src) default.fnt
 	dmd $(src) -g -J. -of$@
