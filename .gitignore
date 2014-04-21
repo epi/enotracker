@@ -1,3 +1,9 @@
 *.o
+*.tmc
+*.tm4
+*.tm8
+*.TMC
+*.TM4
+*.TM8
 xtmc
 unittest
