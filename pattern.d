@@ -96,9 +96,14 @@ class PatternEditor : SubWindow
 
 	void drawCursor()
 	{
+		uint chn = _cursorX / 4;
+		uint pattn = _tmc.song[_songLine][chn].pattn;
+		auto str = pattn > 0x7f
+			? "            "
+			: to!string(_tmc.patterns[pattn][_pattLine]);
+
 		static struct Range { uint start; uint end; }
 		Range r;
-		uint chn = _cursorX / 4;
 		final switch (_cursorX % 4)
 		{
 			case 0:
@@ -110,12 +115,10 @@ class PatternEditor : SubWindow
 			case 3:
 				r = Range(10, 11); break;
 		}
-		uint pattn = _tmc.song[_songLine][chn].pattn;
 		_tw.textf(
 			_active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg,
 			_active ? Color.ActiveHighlightFg : Color.InactiveFg,
-			4 + chn * 12 + r.start, 1 + _centerLine,
-			to!string(_tmc.patterns[pattn][_pattLine])[r.start .. r.end]);
+			4 + chn * 12 + r.start, 1 + _centerLine, str[r.start .. r.end]);
 	}
 
 	void activate()
