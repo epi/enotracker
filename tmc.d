@@ -164,6 +164,11 @@ struct SongLine
 		return all!"a.empty"(chan[]);
 	}
 
+	@property bool last() const pure nothrow
+	{
+		return chan[7].pattn >= 0x80;
+	}
+
 	@property string toString() const
 	{
 		return chan[].retro().map!(x => x.toString())().join(" ");
@@ -222,11 +227,11 @@ class TmcFile
 		_fastplay = main.fastplay;
 
 		// read song data
-		auto startInstr = ((main.instrh[0] << 8) | main.instrl[0]) - start;
-		if (startInstr > data.length
-		 || 0 != (startInstr - TmcData.sizeof) % SongLine.sizeof)
-			throw new TmcLoadException("Instrument 00 address out of range");
-		_song = cast(SongLine[]) data[TmcData.sizeof .. startInstr].dup;
+		auto songData = cast(const(SongLine)[]) data[TmcData.sizeof .. $ & ~15];
+		auto songLength = songData.countUntil!(line => line.last)();
+		if (songLength < 0)
+			throw new TmcLoadException("Invalid song data");
+		_song = songData[0 .. songLength + 1].dup;
 
 		// read instrument data
 		foreach (ins; 0 .. 0x40)
