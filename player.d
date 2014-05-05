@@ -87,6 +87,8 @@ class Player
 
 	@property void tmc(TmcFile t) { _tmc = t; }
 
+	@property bool playing() const nothrow { return atomicLoad(_playing); }
+
 private:
 	void generate(ubyte[] buf)
 	{
