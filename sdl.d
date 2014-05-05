@@ -23,10 +23,17 @@ import std.stdio;
 import std.string;
 import std.typecons;
 
-pragma (lib, "SDLmain");
-pragma (lib, "SDL");
-pragma (lib, "SDL_gfx");
-
+version(Windows)
+{
+	pragma(lib, "SDL");
+}
+else version(linux)
+{
+	pragma (lib, "SDLmain");
+	pragma (lib, "SDL");
+}
+else
+	static assert(false, "Unknown target");
 
 private:
 
@@ -59,18 +66,6 @@ SDL_Surface* SDL_CreateRGBSurface(uint flags, int width, int height, int depth, 
 
 extern (C)
 SDL_Surface* SDL_SetVideoMode(int width, int height, int bpp, uint flags);
-
-extern (C)
-int filledTrigonRGBA(SDL_Surface* dst, short x1, short y1, short x2, short y2, short x3, short y3, ubyte r, ubyte g, ubyte b, ubyte a);
-
-extern (C)
-int trigonRGBA(SDL_Surface* dst, short x1, short y1, short x2, short y2, short x3, short y3, ubyte r, ubyte g, ubyte b, ubyte a);
-
-extern (C)
-int boxRGBA(SDL_Surface* dst, short x1, short y1, short x2, short y2, ubyte r, ubyte g, ubyte b, ubyte a);
-
-extern (C)
-int filledEllipseRGBA(SDL_Surface* dst, short x, short y, short xr, short yr, ubyte r, ubyte g, ubyte b, ubyte a);
 
 extern (C)
 int SDL_SoftStretch(SDL_Surface* src, const SDL_Rect* srcrect, SDL_Surface* dst, const SDL_Rect* dstrect);
@@ -242,44 +237,6 @@ class SDLException : Exception
 
 class Surface
 {
-	void filledTrigonRGBA(int x1, int y1, int x2, int y2, int x3, int y3, ubyte r, ubyte g, ubyte b, ubyte a)
-	{
-		if (.filledTrigonRGBA(pSurf_,
-			cast(short) x1, cast(short) y1,
-			cast(short) x2, cast(short) y2,
-			cast(short) x3, cast(short) y3,
-			r, g, b, a) != 0)
-			throw new SDLException("filledTrigonRGBA failed");
-	}
-
-	void trigonRGBA(int x1, int y1, int x2, int y2, int x3, int y3, ubyte r, ubyte g, ubyte b, ubyte a)
-	{
-		if (.trigonRGBA(pSurf_,
-			cast(short) x1, cast(short) y1,
-			cast(short) x2, cast(short) y2,
-			cast(short) x3, cast(short) y3,
-			r, g, b, a) != 0)
-			throw new SDLException("trigonRGBA failed");
-	}
-
-	void filledEllipseRGBA(int x, int y, int xr, int yr, ubyte r, ubyte g, ubyte b, ubyte a)
-	{
-		if (.filledEllipseRGBA(pSurf_, 
-			cast(short) x, cast(short) y,
-			cast(short) xr, cast(short) yr,
-			r, g, b, a) != 0)
-			throw new SDLException("filledEllipseRGBA failed");
-	}
-
-	void boxRGBA(int x1, int y1, int x2, int y2, ubyte r, ubyte g, ubyte b, ubyte a)
-	{
-		if (.boxRGBA(pSurf_,
-			cast(short) x1, cast(short) y1,
-			cast(short) x2, cast(short) y2,
-			r, g, b, a) != 0)
-			throw new SDLException("boxRGBA failed");
-	}
-
 	void fillRect(SDL_Rect dstrect, uint color)
 	{
 		if (SDL_FillRect(pSurf_, &dstrect, color) != 0)
@@ -304,14 +261,20 @@ class Surface
 
 	void lock()
 	{
-		if (SDL_LockSurface(pSurf_) != 0)
-			throw new Exception("SDL_LockSurface failed");
+		version(linux)
+		{
+			if (SDL_LockSurface(pSurf_) != 0)
+				throw new Exception("SDL_LockSurface failed");
+		}
 	}
 
 	void unlock()
 	{
-		if (SDL_UnlockSurface(pSurf_) != 0)
-			throw new Exception("SDL_UnlockSurface failed");
+		version(linux)
+		{
+			if (SDL_UnlockSurface(pSurf_) != 0)
+				throw new Exception("SDL_UnlockSurface failed");
+		}
 	}
 
 	void saveBMP(string filename)
