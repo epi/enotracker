@@ -167,6 +167,16 @@ class SongEditor : SubWindow
 			else
 				_player.playSong(_position);
 		}
+		else if (key == SDLKey.SDLK_F10)
+		{
+			if (_player.playing)
+				_player.playSong(_position == 0 ? 0 : _position - 1);
+		}
+		else if (key == SDLKey.SDLK_F12)
+		{
+			if (_player.playing)
+				_player.playSong(_position + 1);
+		}
 		return false;
 	}
 
