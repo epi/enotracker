@@ -36,16 +36,15 @@ struct ASAPFrameEvent
 	ubyte[8] channelVolumes;
 }
 
-// TODO: asap.Generate is called from a different thread, there should
-// be some synchronization.
 class Player
 {
 	this()
 	{
+		_playing = false;
+		_silence = true;
 		_asap = new ASAPTmc;
 		_asap.FrameCallback = &this.frameCallback;
 		_audio = new Audio(44100, SDL_AudioFormat.AUDIO_S16LSB, 2, 576, &this.generate);
-		_playing = false;
 		_sema = new Semaphore;
 	}
 
@@ -65,8 +64,9 @@ class Player
 		_asap.load(0x2800, _tmc.save(0x2800, false));
 		_asap.MusicAddr = 0x2800;
 		_asap.Fastplay = 312 / _tmc.fastplay;
-		atomicStore(_playing, true);
 		_asap.Play(songLine);
+		if (cas(&_playing, false, true))
+			_sema.wait();
 	}
 
 	void playPattern(uint songLine, uint pattLine)
@@ -95,18 +95,22 @@ private:
 		import std.stdio;
 		if (atomicLoad(_playing))
 		{
-			_silence = false;
-			atomicStore(_silence, false);
+			mute(false);
 			_asap.Generate(buf, cast(int) buf.length, ASAPSampleFormat.S16LE);
 		}
 		else
 		{
-			if (!_silence)
-			{
-				_silence = true;
-				_sema.notify();
-			}
+			mute(true);
 			buf[] = 0;
+		}
+	}
+
+	void mute(bool m)
+	{
+		if (_silence != m)
+		{
+			_silence = m;
+			_sema.notify();
 		}
 	}
 
@@ -123,7 +127,7 @@ private:
 	ASAPTmc _asap;
 	TmcFile _tmc;
 	Audio _audio;
-	shared bool _playing;
-	shared bool _silence;
 	Semaphore _sema;
+	shared bool _playing;
+	bool _silence;
 }
