@@ -20,7 +20,6 @@
 */
 
 import std.file;
-import std.stdio;
 
 import asap;
 import pattern;
@@ -41,6 +40,7 @@ void main(string[] args)
 {
 	version(unittest)
 	{
+		import std.stdio;
 		writeln("test ok");
 		return;
 	}
@@ -125,7 +125,6 @@ void main(string[] args)
 				pe.update(fevent.songPosition, fevent.patternPosition);
 				pe.drawBars(fevent.channelVolumes);
 				screen.flip();
-				stderr.writef("%02X.%02X\r", fevent.songPosition, fevent.patternPosition);
 				break;
 			}
 			default:
@@ -134,4 +133,3 @@ void main(string[] args)
 		}
 	}
 }
-
