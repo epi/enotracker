@@ -26,47 +26,45 @@ import std.conv;
 
 import player;
 import subwindow;
-import textrender;
 import tmc;
 
 class InstrumentEditor : SubWindow
 {
-	this(TextRenderer tr, uint x, uint y)
+	this(Surface s, uint x, uint y)
 	{
-		_tw = TextWindow(tr, x, y);
+		enum w = 21 + 1 + 2 + 1 + 2 + 2;
+		enum h = 4 * 2 + 1 + 4 + 2;
+		super(s, x, y, w, h);
 		_currentInstr = 0;
 	}
 
-	void draw()
+	override void draw()
 	{
-		enum height = 4 * 2 + 1 + 4 + 2;
-		enum width = 21 + 1 + 2 + 1 + 2 + 2;
-
-		_tw.fgcolor = _active ? Color.ActiveFg : Color.InactiveFg;
-		_tw.bgcolor = _active ? Color.ActiveBg : Color.InactiveBg;
-		_tw.box(0, 0, width, height, _tw.bgcolor);
-		_tw.text(23, 1, "Ins");
-		_tw.textf(23, 2, "-%02X", _currentInstr);
+		fgcolor = active ? Color.ActiveFg : Color.InactiveFg;
+		bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
+		box(0, 0, width, height, bgcolor);
+		text(23, 1, "Ins");
+		textf(23, 2, "-%02X", _currentInstr);
 
 		foreach (i; 0 .. 21)
 		{
 			InstrumentTick tick = _tmc.instruments[_currentInstr].ticks[i];
-			_tw.bar(1 + i, 5, tick.lvolume, Color.Bar,
-				_active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg, 0, 2);
-			_tw.bar(1 + i, 9, tick.rvolume, Color.Bar,
-				_active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg, 0, 2);
-			_tw.textf(1 + i, 10, "%1X", tick.distortion);
-			_tw.textf(1 + i, 11, "%1X", tick.effect);
-			_tw.textf(1 + i, 12, "%1X", tick.parameter >> 4);
-			_tw.textf(1 + i, 13, "%1X", tick.parameter & 0xf);
+			bar(1 + i, 5, tick.lvolume, Color.Bar,
+				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg, 0, 2);
+			bar(1 + i, 9, tick.rvolume, Color.Bar,
+				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg, 0, 2);
+			textf(1 + i, 10, "%1X", tick.distortion);
+			textf(1 + i, 11, "%1X", tick.effect);
+			textf(1 + i, 12, "%1X", tick.parameter >> 4);
+			textf(1 + i, 13, "%1X", tick.parameter & 0xf);
 		}
 
 		foreach (i; 0 .. 9)
-			_tw.textf(26, 5 + i, "%02X", _tmc.instruments[_currentInstr].params[i]);
+			textf(26, 5 + i, "%02X", _tmc.instruments[_currentInstr].params[i]);
 
 		foreach (i; 0 .. 8)
-			_tw.textf(23, 6 + i, "%02x", _tmc.instruments[_currentInstr].arp[i]);
-		if (_active)
+			textf(23, 6 + i, "%02x", _tmc.instruments[_currentInstr].arp[i]);
+		if (active)
 			drawCursor();
 	}
 
@@ -74,19 +72,7 @@ class InstrumentEditor : SubWindow
 	{
 	}
 
-	void activate()
-	{
-		_active = true;
-		draw();
-	}
-
-	void deactivate()
-	{
-		_active = false;
-		draw();
-	}
-
-	bool key(SDLKey key, SDLMod mod)
+	override bool key(SDLKey key, SDLMod mod)
 	{
 		if (key == SDLKey.SDLK_PAGEUP)
 		{
@@ -125,9 +111,7 @@ private:
 		Bar = 0xd0b030,
 	}
 
-	TextWindow _tw;
 	uint _currentInstr;
 	TmcFile _tmc;
 	Player _player;
-	bool _active;
 }

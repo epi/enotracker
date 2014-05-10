@@ -210,6 +210,21 @@ class TmcFile
 {
 	this()
 	{
+		reset();
+	}
+
+	void reset()
+	{
+		SongLine sl;
+		foreach (ref ch; sl.chan[0 .. $ - 1])
+			ch = SongEntry(0x7f, 0xff);
+		sl.chan[$ - 1] = SongEntry(0x80, 0x00);
+		_song ~= sl;
+		foreach (ref p; _patterns)
+			p = new Pattern;
+		_title[] = ' ';
+		_speed = 2;
+		_fastplay = 1;
 	}
 
 	void load(const(ubyte)[] data)

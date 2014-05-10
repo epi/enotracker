@@ -25,34 +25,31 @@ import std.conv;
 
 import player;
 import subwindow;
-import textrender;
 import tmc;
 
 class SongEditor : SubWindow
 {
-	this(TextRenderer tr, uint x, uint y, uint h)
+	this(Surface s, uint x, uint y, uint h)
 	{
-		_tw = TextWindow(tr, x, y);
-		_h = h;
-		_maxLines = _h - 4;
-		_centerLine = (_h - 4) / 2;
+		super(s, x, y, 52, h);
+		_maxLines = h - 4;
+		_centerLine = (h - 4) / 2;
 		_position = 0;
 	}
 
-	void draw()
+	override void draw()
 	{
-		enum width = 52;
-		_tw.fgcolor = _active ? Color.ActiveFg : Color.InactiveFg;
-		_tw.bgcolor = _active ? Color.ActiveBg : Color.InactiveBg;
-		_tw.box(0, 0, width, _h, _tw.bgcolor);
-		_tw.box(0, 3 + _centerLine, width, 1,
-			_active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
-		uint hcolor = _active ? Color.ActiveHighlightFg : Color.InactiveFg;
+		fgcolor = active ? Color.ActiveFg : Color.InactiveFg;
+		bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
+		box(0, 0, width, height, bgcolor);
+		box(0, 3 + _centerLine, width, 1,
+			active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
+		uint hcolor = active ? Color.ActiveHighlightFg : Color.InactiveFg;
 		foreach (chn; 0 .. 8)
-			_tw.textf(hcolor, 4 + chn * 6, 1, "Trac%s", chn + 1);
-		foreach (i; 0 .. _h - 4)
+			textf(hcolor, 4 + chn * 6, 1, "Trac%s", chn + 1);
+		foreach (i; 0 .. height - 4)
 			drawLine(i, _position - _centerLine + i);
-		if (_active)
+		if (active)
 			drawCursor();
 	}
 
@@ -60,21 +57,21 @@ class SongEditor : SubWindow
 	{
 		if (pos < 0 || pos >= _tmc.song.length)
 			return;
-		_tw.bgcolor = _active ? Color.ActiveBg : Color.InactiveBg;
+		bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		if (i == _centerLine)
 		{
-			_tw.fgcolor = _active ? Color.ActiveHighlightFg : Color.InactiveFg;
-			_tw.bgcolor = _active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg;
+			fgcolor = active ? Color.ActiveHighlightFg : Color.InactiveFg;
+			bgcolor = active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg;
 		}
 		else
 		{
-			_tw.fgcolor = _active ? Color.ActiveFg : Color.InactiveFg;
-			_tw.bgcolor = _active ? Color.ActiveBg : Color.InactiveBg;
+			fgcolor = active ? Color.ActiveFg : Color.InactiveFg;
+			bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		}
-		_tw.textf(1, 3 + i, "%02X", pos);
+		textf(1, 3 + i, "%02X", pos);
 		foreach (chn; 0 .. 8)
 		{
-			_tw.textf(4 + chn * 6, 3 + i, "%02X-%02X",
+			textf(4 + chn * 6, 3 + i, "%02X-%02X",
 				_tmc.song[pos][chn].pattn,
 				_tmc.song[pos][chn].transp);
 		}
@@ -100,23 +97,11 @@ class SongEditor : SubWindow
 	{
 		uint scrx = (_cursorX / 2) * 3 + _cursorX % 2;
 		ubyte v = getDigitUnderCursor();
-		_tw.textf(Color.ActiveHighlightBg, Color.ActiveHighlightFg,
+		textf(Color.ActiveHighlightBg, Color.ActiveHighlightFg,
 			4 + scrx, 3 + _centerLine, "%1X", v);
 	}
 
-	void activate()
-	{
-		_active = true;
-		draw();
-	}
-
-	void deactivate()
-	{
-		_active = false;
-		draw();
-	}
-
-	bool key(SDLKey key, SDLMod mod)
+	override bool key(SDLKey key, SDLMod mod)
 	{
 		if (key == SDLKey.SDLK_LEFT)
 		{
@@ -218,13 +203,10 @@ private:
 	}
 
 	Observer[] _observers;
-	TextWindow _tw;
 	uint _cursorX;
-	uint _h;
 	uint _maxLines;
 	uint _centerLine;
 	uint _position;
-	bool _active = false;
 	TmcFile _tmc;
 	Player _player;
 }

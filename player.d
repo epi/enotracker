@@ -21,6 +21,9 @@
 
 module player;
 
+import std.algorithm;
+import std.range;
+
 import core.atomic;
 import core.sync.semaphore;
 
@@ -36,6 +39,16 @@ struct ASAPFrameEvent
 	ubyte[8] channelVolumes;
 }
 
+enum BufferLength = 576;
+
+struct ASAPBufferEvent
+{
+	ubyte type = SDL_EventType.SDL_USEREVENT + 1;
+	shared(short)[] data;
+	@property auto left() inout nothrow { return cast(inout(short)[]) data[0 .. $ / 2]; }
+	@property auto right() inout nothrow { return cast(inout(short)[]) data[$ / 2 .. $]; }
+}
+
 class Player
 {
 	this()
@@ -44,16 +57,13 @@ class Player
 		_silence = true;
 		_asap = new ASAPTmc;
 		_asap.FrameCallback = &this.frameCallback;
-		_audio = new Audio(44100, SDL_AudioFormat.AUDIO_S16LSB, 2, 576, &this.generate);
+		_audio = new Audio(44100, SDL_AudioFormat.AUDIO_S16LSB, 2, BufferLength, &this.generate);
 		_sema = new Semaphore;
-	}
-
-	void start()
-	{	
+		_bufferEvent.data.length = BufferLength / short.sizeof;
 		_audio.play();
 	}
 
-	void close()
+	~this()
 	{
 		_audio.close();
 	}
@@ -92,16 +102,29 @@ class Player
 private:
 	void generate(ubyte[] buf)
 	{
-		import std.stdio;
 		if (atomicLoad(_playing))
 		{
 			mute(false);
 			_asap.Generate(buf, cast(int) buf.length, ASAPSampleFormat.S16LE);
+			postBufferEvent(buf[]);
 		}
 		else
 		{
 			mute(true);
 			buf[] = 0;
+		}
+	}
+
+	ASAPBufferEvent _bufferEvent;
+
+	void postBufferEvent(in ubyte[] buf)
+	{
+		if (buf.length >= BufferLength)
+		{
+			auto shbuf = cast(const(short[])) buf[0 .. BufferLength];
+			shbuf[0 .. $].stride(2).copy(_bufferEvent.left);
+			shbuf[1 .. $].stride(2).copy(_bufferEvent.right);
+			SDL_PushEvent(cast(SDL_Event*) &_bufferEvent);
 		}
 	}
 

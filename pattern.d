@@ -26,30 +26,28 @@ import std.conv;
 
 import player;
 import subwindow;
-import textrender;
 import tmc;
 
 class PatternEditor : SubWindow
 {
-	this(TextRenderer tr, uint x, uint y, uint h)
+	this(Surface s, uint x, uint y, uint h)
 	{
-		_tw = TextWindow(tr, x, y);
-		_h = h;
-		_centerLine = (_h - 3) / 2;
+		enum w = 4 + 12 * 8 - 1;
+		super(s, x, y, w, h);
+		_centerLine = (h - 3) / 2;
 		_songLine = 0;
-		_maxLines = _h - 2;
+		_maxLines = h - 2;
 	}
 
-	void draw()
+	override void draw()
 	{
-		enum width = 4 + 12 * 8 - 1;
-		_tw.box(0, 0, width, _h, _active ? Color.ActiveBg : Color.InactiveBg);
-		_tw.box(0, 1 + _centerLine, width, 1, _active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
+		box(0, 0, width, height, active ? Color.ActiveBg : Color.InactiveBg);
+		box(0, 1 + _centerLine, width, 1, active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
 		foreach (i; 0 .. _maxLines)
 		{
 			drawLine(i, i + _pattLine - _centerLine);
 		}
-		if (_active)
+		if (active)
 			drawCursor();
 	}
 
@@ -62,8 +60,8 @@ class PatternEditor : SubWindow
 				return;
 			--sl;
 			line = line & 0x3f;
-			_tw.fgcolor = _active ? Color.ActiveOuterFg : Color.InactiveOuterFg;
-			_tw.bgcolor = _active ? Color.ActiveBg : Color.InactiveBg;
+			fgcolor = active ? Color.ActiveOuterFg : Color.InactiveOuterFg;
+			bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		}
 		else if (line > 0x3f)
 		{
@@ -71,26 +69,26 @@ class PatternEditor : SubWindow
 			if (sl >= _tmc.song.length)
 				return;
 			line = line & 0x3f;
-			_tw.fgcolor = _active ? Color.ActiveOuterFg : Color.InactiveOuterFg;
-			_tw.bgcolor = _active ? Color.ActiveBg : Color.InactiveBg;
+			fgcolor = active ? Color.ActiveOuterFg : Color.InactiveOuterFg;
+			bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		}
 		else if (line == _pattLine)
 		{
-			_tw.fgcolor = _active ? Color.ActiveHighlightFg : Color.InactiveFg;
-			_tw.bgcolor = _active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg;
+			fgcolor = active ? Color.ActiveHighlightFg : Color.InactiveFg;
+			bgcolor = active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg;
 		}
 		else
 		{
-			_tw.fgcolor = _active ? Color.ActiveFg : Color.InactiveFg;
-			_tw.bgcolor = _active ? Color.ActiveBg : Color.InactiveBg;
+			fgcolor = active ? Color.ActiveFg : Color.InactiveFg;
+			bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		}
-		_tw.textf(1, 1 + i, "%02X", line);
+		textf(1, 1 + i, "%02X", line);
 		foreach (chn; 0 .. 8)
 		{
 			uint pattn = _tmc.song[sl][chn].pattn;
 			if (pattn > 0x7f)
 				continue;
-			_tw.textf(4 + chn * 12, 1 + i, "%s", _tmc.patterns[pattn][line]);
+			textf(4 + chn * 12, 1 + i, "%s", _tmc.patterns[pattn][line]);
 		}
 	}
 
@@ -115,25 +113,13 @@ class PatternEditor : SubWindow
 			case 3:
 				r = Range(10, 11); break;
 		}
-		_tw.textf(
-			_active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg,
-			_active ? Color.ActiveHighlightFg : Color.InactiveFg,
+		textf(
+			active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg,
+			active ? Color.ActiveHighlightFg : Color.InactiveFg,
 			4 + chn * 12 + r.start, 1 + _centerLine, str[r.start .. r.end]);
 	}
 
-	void activate()
-	{
-		_active = true;
-		draw();
-	}
-
-	void deactivate()
-	{
-		_active = false;
-		draw();
-	}
-
-	bool key(SDLKey key, SDLMod mod)
+	override bool key(SDLKey key, SDLMod mod)
 	{
 		if (key == SDLKey.SDLK_LEFT)
 		{
@@ -188,8 +174,8 @@ class PatternEditor : SubWindow
 	{
 		foreach (i, vol; chnvol)
 		{
-			_tw.bar(cast(uint) i * 12 + 10, _centerLine + 1, vol, Color.Bar,
-				_active ? Color.ActiveBg : Color.InactiveBg, 4, 4);
+			bar(cast(uint) i * 12 + 10, _centerLine + 1, vol, Color.Bar,
+				active ? Color.ActiveBg : Color.InactiveBg, 4, 4);
 		}
 	}
 
@@ -211,8 +197,6 @@ private:
 		Bar = 0xe0c040,
 	}
 
-	TextWindow _tw;
-	uint _h;
 	uint _songLine;
 	uint _pattLine;
 	uint _maxLines;
@@ -220,5 +204,4 @@ private:
 	TmcFile _tmc;
 	Player _player;
 	uint _cursorX;
-	bool _active;
 }

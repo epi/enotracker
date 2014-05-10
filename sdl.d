@@ -283,13 +283,9 @@ class Surface
 			throw new Exception("SDL_SaveBMP failed");
 	}
 
-	void free()
-	{
-		SDL_FreeSurface(pSurf_);
-	}
-
 	~this()
 	{
+		SDL_FreeSurface(pSurf_);
 	}
 
 private:

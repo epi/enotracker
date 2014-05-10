@@ -28,13 +28,132 @@ import player;
 import sdl;
 import song;
 import subwindow;
-import textrender;
 import tmc;
 
-enum ScreenSize
+class Enotracker
 {
-	width = 808,
-	height = 600,
+	private enum ScreenSize
+	{
+		width = 808,
+		height = 600,
+	}
+
+	this()
+	{
+		_screen = new Screen(ScreenSize.width, ScreenSize.height, 32);
+		scope(failure) clear(_screen);
+
+		// create and connect windows
+		_songEditor = new SongEditor(_screen, 1, 3, 19);
+		_patternEditor = new PatternEditor(_screen, 1, 23, 48);
+		_instrumentEditor = new InstrumentEditor(_screen, 54, 7);
+		// _oscilloscope = new Oscilloscope(_screen, 84, 7, 14, 6);
+		// _nameEditor = new NameEditor(_screen, 54, 3);
+
+		_songEditor.next = _patternEditor;
+		_patternEditor.next = _instrumentEditor;
+		_instrumentEditor.next = _songEditor;
+		_songEditor.addObserver(&_patternEditor.changeSongLine);
+		_activeWindow = _songEditor;
+
+		// create and attach player
+		_player = new Player;
+		scope(failure) clear(_player);
+
+		_songEditor.player = _player;
+		_patternEditor.player = _player;
+		_instrumentEditor.player = _player;
+
+		// create and attach music data object
+		_tmc = new TmcFile;
+		_player.tmc = _tmc;
+		_songEditor.tmc = _tmc;
+		_patternEditor.tmc = _tmc;
+		_instrumentEditor.tmc = _tmc;
+
+		// draw UI
+		_screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
+		_songEditor.active = true;
+		_patternEditor.active = false;
+		_instrumentEditor.active = false;
+		// _nameEditor.active = false;
+		// _speedEditor.active = false;
+		// _oscilloscope.active = false;
+		_screen.flip();
+	}
+
+	~this()
+	{
+		clear(_screen);
+		clear(_player);
+	}
+
+	void loadFile(string filename)
+	{
+		auto content = cast(immutable(ubyte)[]) std.file.read(filename);
+		_tmc.load(content);
+		_songEditor.active = true;
+		_patternEditor.active = false;
+		_instrumentEditor.active = false;
+		// _nameEditor.active = false;
+		// _speedEditor.active = false;
+		_screen.flip();
+	}
+
+	void processEvents()
+	{
+		SDL_EnableKeyRepeat(500, 30);
+		for (;;)
+		{
+			SDL_Event event;
+			while (SDL_WaitEvent(&event))
+			{
+				switch (event.type)
+				{
+				case SDL_EventType.SDL_QUIT:
+					return;
+				case SDL_EventType.SDL_KEYDOWN:
+					if (event.key.keysym.sym == SDLKey.SDLK_TAB)
+					{
+						_activeWindow.active = false;
+						_activeWindow = _activeWindow.next;
+						_activeWindow.active = true;
+						_screen.flip();
+					}
+					else if (event.key.keysym.sym == SDLKey.SDLK_ESCAPE)
+					{
+						_player.stop();
+						ubyte[8] zeroChnVol;
+						_patternEditor.drawBars(zeroChnVol[]);
+						_screen.flip();
+					}
+					else if (_activeWindow.key(event.key.keysym.sym, event.key.keysym.mod))
+						_screen.flip();
+					break;
+				case SDL_EventType.SDL_USEREVENT:
+				{
+					auto fevent = cast(const(ASAPFrameEvent)*) &event;
+					_songEditor.update(fevent.songPosition);
+					_patternEditor.update(fevent.songPosition, fevent.patternPosition);
+					_patternEditor.drawBars(fevent.channelVolumes);
+					_screen.flip();
+					break;
+				}
+				default:
+					break;
+				}
+			}
+		}
+	}
+
+private:
+	Screen _screen;
+	TmcFile _tmc;
+	SongEditor _songEditor;
+	PatternEditor _patternEditor;
+	InstrumentEditor _instrumentEditor;
+	SubWindow _activeWindow;
+	Player _player;
 }
 
 void main(string[] args)
@@ -46,95 +165,9 @@ void main(string[] args)
 		return;
 	}
 
-	auto tmc = new TmcFile;
-	auto content = cast(immutable(ubyte)[]) std.file.read(args[1]);
-	tmc.load(content);
-
-	auto screen = new Screen(ScreenSize.width, ScreenSize.height, 32);
-	scope (exit) screen.free();
-
-	screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
-	
-	auto tr = new TextRenderer(screen);
-
-	tr.fgcolor = 0xFFFFFF;
-	tr.bgcolor = 0x000000;
-
-	tr.text(2, 1, args[1]);
-
-	SubWindow[] windows;
-
-	auto se = new SongEditor(tr, 1, 3, 19);
-	se.tmc = tmc;
-	windows ~= se;
-
-	auto pe = new PatternEditor(tr, 1, 23, 48);
-	pe.tmc = tmc;
-	windows ~= pe;
-
-	auto ie = new InstrumentEditor(tr, 54, 7);
-	ie.tmc = tmc;
-	windows ~= ie;
-
-	se.addObserver(&pe.changeSongLine);
-
-	foreach (w; windows)
-		w.deactivate();
-	
-	uint activeWindow = 0;
-	windows[activeWindow].activate();
-
-	screen.flip();
-
-	auto player = new Player;
-	scope(exit) player.close();
-	player.start();
-	player.tmc = tmc;
-
-	se.player = player;
-	pe.player = player;
-	ie.player = player;
-
-	SDL_EnableKeyRepeat(500, 30);
-	for (;;)
-	{
-		SDL_Event event;
-		while (SDL_WaitEvent(&event))
-		{
-			switch (event.type)
-			{
-			case SDL_EventType.SDL_QUIT:
-				return;
-			case SDL_EventType.SDL_KEYDOWN:
-				if (event.key.keysym.sym == SDLKey.SDLK_TAB)
-				{
-					windows[activeWindow].deactivate();
-					activeWindow = (activeWindow + 1) % windows.length;
-					windows[activeWindow].activate();
-					screen.flip();
-				}
-				else if (event.key.keysym.sym == SDLKey.SDLK_ESCAPE)
-				{
-					player.stop();
-					ubyte[8] zeroChnVol;
-					pe.drawBars(zeroChnVol[]);
-					screen.flip();
-				}
-				else if (windows[activeWindow].key(event.key.keysym.sym, event.key.keysym.mod))
-					screen.flip();
-				break;
-			case SDL_EventType.SDL_USEREVENT:
-			{
-				auto fevent = cast(const(ASAPFrameEvent)*) &event;
-				se.update(fevent.songPosition);
-				pe.update(fevent.songPosition, fevent.patternPosition);
-				pe.drawBars(fevent.channelVolumes);
-				screen.flip();
-				break;
-			}
-			default:
-				break;
-			}
-		}
-	}
+	auto eno = new Enotracker;
+	scope(exit) clear(eno);
+	if (args.length > 1)
+		eno.loadFile(args[1]);
+	eno.processEvents();
 }
