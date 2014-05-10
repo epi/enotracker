@@ -22,6 +22,7 @@
 import std.file;
 
 import asap;
+import instrument;
 import pattern;
 import player;
 import sdl;
@@ -52,25 +53,28 @@ void main(string[] args)
 	auto screen = new Screen(ScreenSize.width, ScreenSize.height, 32);
 	scope (exit) screen.free();
 
-	screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x101010);
+	screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
 	
 	auto tr = new TextRenderer(screen);
 
 	tr.fgcolor = 0xFFFFFF;
 	tr.bgcolor = 0x000000;
 
-	tr.text(1, 1, "enotracker 0.0.1 by epi/Tristesse");
+	tr.text(2, 1, args[1]);
 
 	SubWindow[] windows;
 
-	auto se = new SongEditor(tr, 48, 3, 20);
+	auto se = new SongEditor(tr, 1, 3, 19);
 	se.tmc = tmc;
-	se.draw();
 	windows ~= se;
 
-	auto pe = new PatternEditor(tr, 1, 24, 48);
+	auto pe = new PatternEditor(tr, 1, 23, 48);
 	pe.tmc = tmc;
 	windows ~= pe;
+
+	auto ie = new InstrumentEditor(tr, 54, 7);
+	ie.tmc = tmc;
+	windows ~= ie;
 
 	se.addObserver(&pe.changeSongLine);
 
@@ -89,6 +93,7 @@ void main(string[] args)
 
 	se.player = player;
 	pe.player = player;
+	ie.player = player;
 
 	SDL_EnableKeyRepeat(500, 30);
 	for (;;)
