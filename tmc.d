@@ -184,6 +184,12 @@ align(1) struct InstrumentTick
 	{
 		return all!"a == 0"(data[]);
 	}
+
+	@property ubyte lvolume() const pure nothrow { return data[0] & 0xf; }
+	@property ubyte rvolume() const pure nothrow { return data[1] & 0xf; }
+	@property ubyte distortion() const pure nothrow { return data[0] >> 4; }
+	@property ubyte effect() const pure nothrow { return data[1] >> 4; }
+	@property ubyte parameter() const pure nothrow { return data[2]; }
 }
 
 align(1) struct Instrument
@@ -361,7 +367,8 @@ class TmcFile
 			return header[] ~ result;
 	}
 
-	@property Pattern[] patterns() { return _patterns; }
+	@property inout(Instrument)[] instruments() inout { return _instruments; }
+	@property inout(Pattern)[] patterns() inout { return _patterns; }
 	@property inout(SongLine)[] song() inout { return _song; }
 
 	@property ubyte speed() const { return _speed; }
