@@ -23,6 +23,7 @@ import std.file;
 
 import asap;
 import instrument;
+import oscilloscope;
 import pattern;
 import player;
 import sdl;
@@ -47,7 +48,7 @@ class Enotracker
 		_songEditor = new SongEditor(_screen, 1, 3, 19);
 		_patternEditor = new PatternEditor(_screen, 1, 23, 48);
 		_instrumentEditor = new InstrumentEditor(_screen, 54, 7);
-		// _oscilloscope = new Oscilloscope(_screen, 84, 7, 14, 6);
+		_oscilloscope = new Oscilloscope(_screen, 84, 7, 14, 6);
 		// _nameEditor = new NameEditor(_screen, 54, 3);
 
 		_songEditor.next = _patternEditor;
@@ -78,7 +79,7 @@ class Enotracker
 		_instrumentEditor.active = false;
 		// _nameEditor.active = false;
 		// _speedEditor.active = false;
-		// _oscilloscope.active = false;
+		_oscilloscope.active = false;
 		_screen.flip();
 	}
 
@@ -97,6 +98,7 @@ class Enotracker
 		_instrumentEditor.active = false;
 		// _nameEditor.active = false;
 		// _speedEditor.active = false;
+		_oscilloscope.active = false;
 		_screen.flip();
 	}
 
@@ -125,6 +127,7 @@ class Enotracker
 						_player.stop();
 						ubyte[8] zeroChnVol;
 						_patternEditor.drawBars(zeroChnVol[]);
+						_oscilloscope.update();
 						_screen.flip();
 					}
 					else if (_activeWindow.key(event.key.keysym.sym, event.key.keysym.mod))
@@ -136,6 +139,15 @@ class Enotracker
 					_songEditor.update(fevent.songPosition);
 					_patternEditor.update(fevent.songPosition, fevent.patternPosition);
 					_patternEditor.drawBars(fevent.channelVolumes);
+					_screen.flip();
+					break;
+				}
+				case SDL_EventType.SDL_USEREVENT + 1:
+				{
+					auto bevent = cast(const(ASAPBufferEvent)*) &event;
+					_oscilloscope.update(
+						cast(const(short)[]) bevent.left,
+						cast(const(short)[]) bevent.right);
 					_screen.flip();
 					break;
 				}
@@ -152,6 +164,7 @@ private:
 	SongEditor _songEditor;
 	PatternEditor _patternEditor;
 	InstrumentEditor _instrumentEditor;
+	Oscilloscope _oscilloscope;
 	SubWindow _activeWindow;
 	Player _player;
 }
