@@ -155,16 +155,15 @@ struct TextWindow
 		_tr.box(_xo + x, _yo + y, w, h, col);
 	}
 
-	void bar(uint x, uint y, uint vol, uint colbar, uint colbak)
+	void bar(uint x, uint y, uint vol, uint colbar, uint colbak, uint hshift = 0, uint step = 2)
 	{
 		_tr._surface.fillRect(SDL_Rect(
-			cast(ushort) ((_xo + x) * 8 + 4), cast(ushort) ((_yo + y) * 8 - 15 * 4),
-			8, cast(ushort) ((15 - vol) * 4)), colbak);
+			cast(ushort) ((_xo + x) * 8 + hshift), cast(ushort) ((_yo + y) * 8 - 15 * step),
+			8, cast(ushort) ((15 - vol) * step)), colbak);
 		_tr._surface.fillRect(SDL_Rect(
-			cast(ushort) ((_xo + x) * 8 + 4), cast(ushort) ((_yo + y) * 8 - vol * 4),
-			8, cast(ushort) (vol * 4)), colbar);
+			cast(ushort) ((_xo + x) * 8 + hshift), cast(ushort) ((_yo + y) * 8 - vol * step),
+			8, cast(ushort) (vol * step)), colbar);
 	}
-
 
 	@property void fgcolor(uint fg) { _tr.fgcolor = fg; }
 	@property uint fgcolor() const { return _tr.fgcolor; }

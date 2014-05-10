@@ -189,7 +189,7 @@ class PatternEditor : SubWindow
 		foreach (i, vol; chnvol)
 		{
 			_tw.bar(cast(uint) i * 12 + 10, _centerLine + 1, vol, Color.Bar,
-				_active ? Color.ActiveBg : Color.InactiveBg);
+				_active ? Color.ActiveBg : Color.InactiveBg, 4, 4);
 		}
 	}
 
