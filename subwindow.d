@@ -115,14 +115,26 @@ protected:
 				cast(ushort) (w * 8), cast(ushort) (h * 8)), col);
 	}
 
-	void bar(uint x, uint y, uint vol, uint colbar, uint colbak, uint hshift = 0, uint step = 2)
+	static uint rgbAverage(uint col1, uint col2)
 	{
-		_surface.fillRect(SDL_Rect(
-			cast(ushort) ((_xo + x) * 8 + hshift), cast(ushort) ((_yo + y) * 8 - 15 * step),
-			8, cast(ushort) ((15 - vol) * step)), colbak);
-		_surface.fillRect(SDL_Rect(
-			cast(ushort) ((_xo + x) * 8 + hshift), cast(ushort) ((_yo + y) * 8 - vol * step),
-			8, cast(ushort) (vol * step)), colbar);
+		return (((col1 ^ col2) & 0xfffefefe) >>> 1) + (col1 & col2);
+	}
+
+	void bar(uint x, uint y, uint vol, uint colbar, uint colbak, uint hshift = 0)
+	{
+		enum step = 2;
+		auto leftX = cast(ushort) ((_xo + x) * 8 + hshift);
+		auto topY = cast(ushort) ((_yo + y) * 8 - 15 * step);
+		auto botY = cast(ushort) (topY + 16 * step);
+		auto barHeight = cast(ushort) (vol * step);
+		auto remHeight = cast(ushort) ((15 - vol) * step);
+		uint avgCol = rgbAverage(colbak, colbar);
+		_surface.fillRect(SDL_Rect(leftX, topY, 8, remHeight), colbak);
+		for (uint yy = topY + remHeight; yy < botY; yy += 2)
+		{
+			_surface.fillRect(SDL_Rect(leftX, cast(ushort) yy, 7, 1), colbar);
+			_surface.fillRect(SDL_Rect(leftX, cast(ushort) (yy + 1), 7, 1), avgCol);
+		}
 	}
 
 	uint fgcolor;

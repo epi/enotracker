@@ -182,7 +182,7 @@ class PatternEditor : SubWindow
 		foreach (i, vol; chnvol)
 		{
 			bar(cast(uint) i * 12 + 10, _centerLine + 1, vol, Color.Bar,
-				active ? Color.ActiveBg : Color.InactiveBg, 4, 4);
+				active ? Color.ActiveBg : Color.InactiveBg, 4);
 		}
 	}
 

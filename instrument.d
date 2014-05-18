@@ -51,9 +51,9 @@ class InstrumentEditor : SubWindow
 		{
 			InstrumentTick tick = _tmc.instruments[_currentInstr].ticks[i];
 			bar(1 + i, 5, tick.lvolume, Color.Bar,
-				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg, 0, 2);
+				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
 			bar(1 + i, 9, tick.rvolume, Color.Bar,
-				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg, 0, 2);
+				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
 			textf(1 + i, 10, "%1X", tick.distortion);
 			textf(1 + i, 11, "%1X", tick.effect);
 			textf(1 + i, 12, "%1X", tick.parameter >> 4);
