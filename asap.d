@@ -40,11 +40,33 @@ class ASAPTmc
 		this.Cpu.Pc = 53760;
 	}
 
+	private void SetNoteAndCallPlayer()
+	{
+		immutable(ubyte[]) prog = [
+			cast(ubyte) 0xa9, cast(ubyte) (0x20 + NextNoteChan), 0xa2, 0x00, 0xa0, 0xff,
+			0x20, cast(ubyte) (this.PlayerAddr), cast(ubyte) (this.PlayerAddr >> 8),
+			0xa9, cast(ubyte) (0x20 + NextNoteChan), 0xa2, cast(ubyte) NextNote, 0xa0, cast(ubyte) NextNoteInstr,
+			0x20, cast(ubyte) (this.PlayerAddr), cast(ubyte) (this.PlayerAddr >> 8),
+			0x20, cast(ubyte) (this.PlayerAddr + 3), cast(ubyte) ((this.PlayerAddr + 3) >> 8),
+			0xd2 ];
+		this.Memory[53760 .. 53760 + prog.length] = prog[];
+		this.Cpu.Pc = 53760;
+	}
+
+	private int NextNote;
+	private int NextNoteInstr;
+	private int NextNoteChan;
+
 	private void Call6502Player()
 	{
 		if (--this.TmcPerFrameCounter <= 0) {
 			this.TmcPerFrameCounter = this.Memory[this.MusicAddr + 31];
-			this.Call6502(this.PlayerAddr + 3);
+			if (this.NextNote) {
+				this.SetNoteAndCallPlayer();
+				this.NextNote = 0;
+			}
+			else
+				this.Call6502(this.PlayerAddr + 3);
 		}
 		else
 			this.Call6502(this.PlayerAddr + 6);
@@ -299,11 +321,7 @@ class ASAPTmc
 		}
 	}
 
-	/// Prepares playback of the specified song of the loaded module.
-	/// Params:
-	/// song = Zero-based song index.
-	/// duration = Playback time in milliseconds, -1 means infinity.
-	final void Play(int position)
+	final void InitPlay(int position = -1)
 	{
 		this.NextPlayerCycle = 8388608;
 		this.BlocksPlayed = 0;
@@ -316,11 +334,24 @@ class ASAPTmc
 		this.MutePokeyChannels(255);
 
 		this.Do6502Init(this.PlayerAddr, 112, this.MusicAddr >> 8, this.MusicAddr);
-		this.Do6502Init(this.PlayerAddr, 16, position, 0);
+		if (position >= 0)
+			this.Do6502Init(this.PlayerAddr, 16, position, 0);
 		this.TmcPerFrameCounter = 1;
 
 		this.MutePokeyChannels(0);
 		this.NextPlayerCycle = 0;
+	}
+
+	final void PlaySongAt(int position)
+	{
+		InitPlay(position);
+	}
+
+	final void PlayNote(int note, int instr, int chan)
+	{
+		NextNote = note;
+		NextNoteInstr = instr;
+		NextNoteChan = chan;
 	}
 
 	final void PokeHardware(int addr, int data)

@@ -93,6 +93,7 @@ class Enotracker
 	{
 		auto content = cast(immutable(ubyte)[]) std.file.read(filename);
 		_tmc.load(content);
+		_player.reload();
 		_songEditor.active = true;
 		_patternEditor.active = false;
 		_instrumentEditor.active = false;

@@ -21,10 +21,11 @@
 
 module player;
 
-import std.algorithm;
 import std.range;
+import std.stdio;
 
 import core.atomic;
+import core.memory;
 import core.sync.semaphore;
 
 import asap;
@@ -53,7 +54,6 @@ class Player
 {
 	this()
 	{
-		_playing = false;
 		_silence = true;
 		_asap = new ASAPTmc;
 		_asap.FrameCallback = &this.frameCallback;
@@ -68,15 +68,25 @@ class Player
 		_audio.close();
 	}
 
+	void reload()
+	{
+		executeInAudioThread(()
+		{
+			_asap.load(0x2800, _tmc.save(0x2800, false));
+			_asap.MusicAddr = 0x2800;
+			_asap.Fastplay = 312 / _tmc.fastplay;
+			_asap.InitPlay();
+			stderr.writeln("reload");
+		});
+	}
+
 	void playSong(uint songLine)
 	{
-		stop();
-		_asap.load(0x2800, _tmc.save(0x2800, false));
-		_asap.MusicAddr = 0x2800;
-		_asap.Fastplay = 312 / _tmc.fastplay;
-		_asap.Play(songLine);
-		if (cas(&_playing, false, true))
-			_sema.wait();
+		executeInAudioThread(()
+		{
+			_asap.PlaySongAt(songLine);
+			_silence = false;
+		});
 	}
 
 	void playPattern(uint songLine, uint pattLine)
@@ -89,28 +99,53 @@ class Player
 		throw new Exception("not implemented");
 	}
 
+	void playNote(uint note, uint instr, uint chan)
+	{
+		executeInAudioThread(()
+		{
+			_asap.PlayNote(note, instr, chan);
+			_silence = false;
+		});
+	}
+
 	void stop()
 	{
-		if (cas(&_playing, true, false))
-			_sema.wait();
+		executeInAudioThread(()
+		{
+			_silence = true;
+			postEmptyBufferEvent();
+		});
 	}
 
 	@property void tmc(TmcFile t) { _tmc = t; }
 
-	@property bool playing() const nothrow { return atomicLoad(_playing); }
-
 private:
+	void executeInAudioThread(void delegate() cmd)
+	{
+		_command = cmd;
+		atomicStore(_newRequest, true);
+		_sema.wait();
+	}
+
 	void generate(ubyte[] buf)
 	{
-		if (atomicLoad(_playing))
+		if (atomicLoad(_newRequest))
 		{
-			mute(false);
+			// apparently, running GC from the audio thread causes a crash, at least on Windows.
+			GC.disable();
+			_command();
+			_command = null;
+			_newRequest = false;
+			_sema.notify();
+			GC.enable();
+		}
+		if (!_silence)
+		{
 			_asap.Generate(buf, cast(int) buf.length, ASAPSampleFormat.S16LE);
 			postBufferEvent(buf[]);
 		}
 		else
 		{
-			mute(true);
 			buf[] = 0;
 		}
 	}
@@ -128,13 +163,10 @@ private:
 		}
 	}
 
-	void mute(bool m)
+	void postEmptyBufferEvent()
 	{
-		if (_silence != m)
-		{
-			_silence = m;
-			_sema.notify();
-		}
+		ASAPBufferEvent be;
+		SDL_PushEvent(cast(SDL_Event*) &be);
 	}
 
 	void frameCallback()
@@ -151,6 +183,7 @@ private:
 	TmcFile _tmc;
 	Audio _audio;
 	Semaphore _sema;
-	shared bool _playing;
 	bool _silence;
+	shared void delegate() _command;
+	shared bool _newRequest;
 }

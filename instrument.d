@@ -74,6 +74,19 @@ class InstrumentEditor : SubWindow
 
 	override bool key(SDLKey key, SDLMod mod)
 	{
+		if (mod & (SDLMod.KMOD_RSHIFT | SDLMod.KMOD_LSHIFT))
+		{
+			if (key == SDLKey.SDLK_z)
+				_player.playNote(1, _currentInstr, 0);
+			else if (key == SDLKey.SDLK_s)
+				_player.playNote(2, _currentInstr, 0);
+			else if (key == SDLKey.SDLK_x)
+				_player.playNote(3, _currentInstr, 0);
+			else if (key == SDLKey.SDLK_d)
+				_player.playNote(4, _currentInstr, 0);
+			else if (key == SDLKey.SDLK_c)
+				_player.playNote(5, _currentInstr, 0);
+		}
 		if (key == SDLKey.SDLK_PAGEUP)
 		{
 			_currentInstr = (_currentInstr - 1) & 0x3f;
