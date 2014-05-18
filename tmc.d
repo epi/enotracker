@@ -218,13 +218,40 @@ class TmcFile
 		SongLine sl;
 		foreach (ref ch; sl.chan[0 .. $ - 1])
 			ch = SongEntry(0x7f, 0xff);
-		sl.chan[$ - 1] = SongEntry(0x80, 0x00);
-		_song ~= sl;
+		sl.chan[$ - 1] = SongEntry(0x00, 0x80);
+		_song = [ sl ];
 		foreach (ref p; _patterns)
 			p = new Pattern;
 		_title[] = ' ';
 		_speed = 2;
 		_fastplay = 1;
+	}
+
+	void extractOnePosition(TmcFile other, uint position, uint patternPosition)
+	{
+		reset();
+		SongLine sl1, sl2, sl3;
+		foreach (i; 0 .. 8)
+		{
+			auto pattn = other._song[position].chan[i].pattn;
+			auto transp = other._song[position].chan[i].transp;
+
+			auto tail = _patterns[i];
+			other._patterns[pattn]._lines[patternPosition .. $].copy(tail._lines[]);
+			tail._lines[$ - patternPosition - 1].setCmd = true;
+			tail._lines[$ - patternPosition - 1].cmd = 0;
+			sl1.chan[i] = SongEntry(transp, cast(ubyte) i);
+
+			_patterns[8 + i]._lines[] = other._patterns[pattn]._lines[];
+			sl2.chan[i] = SongEntry(transp, cast(ubyte) (8 + i));
+
+			sl3.chan[i] = SongEntry(0xff, 0x7f);
+		}
+		sl3.chan[$ - 1] = SongEntry(0x01, 0x80);
+		_instruments[] = other._instruments[];
+		_song = [ sl1, sl2, sl3 ];
+		_speed = other._speed;
+		_fastplay = other._fastplay;
 	}
 
 	void load(const(ubyte)[] data)
