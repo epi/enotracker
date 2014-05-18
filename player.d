@@ -22,7 +22,6 @@
 module player;
 
 import std.range;
-import std.stdio;
 
 import core.atomic;
 import core.memory;
@@ -61,6 +60,7 @@ class Player
 		_sema = new Semaphore;
 		_bufferEvent.data.length = BufferLength / short.sizeof;
 		_audio.play();
+		_tempTmc = new TmcFile;
 	}
 
 	~this()
@@ -76,7 +76,6 @@ class Player
 			_asap.MusicAddr = 0x2800;
 			_asap.Fastplay = 312 / _tmc.fastplay;
 			_asap.InitPlay();
-			stderr.writeln("reload");
 		});
 	}
 
@@ -84,14 +83,32 @@ class Player
 	{
 		executeInAudioThread(()
 		{
+			_asap.load(0x2800, _tmc.save(0x2800, false));
+			_asap.MusicAddr = 0x2800;
+			_asap.Fastplay = 312 / _tmc.fastplay;
+			_asap.InitPlay();
 			_asap.PlaySongAt(songLine);
+			_initialPatternPosition = -1;
 			_silence = false;
 		});
 	}
 
-	void playPattern(uint songLine, uint pattLine)
+	TmcFile _tempTmc;
+
+	void playPattern(uint songPosition, uint patternPosition)
 	{
-		throw new Exception("not implemented");
+		_tempTmc.extractOnePosition(_tmc, songPosition, patternPosition);
+		executeInAudioThread(()
+		{
+			_asap.load(0x2800, _tempTmc.save(0x2800, false));
+			_asap.MusicAddr = 0x2800;
+			_asap.Fastplay = 312 / _tmc.fastplay;
+			_asap.InitPlay();
+			_asap.PlaySongAt(0);
+			_fixedSongPosition = songPosition;
+			_initialPatternPosition = patternPosition;
+			_silence = false;
+		});
 	}
 
 	void playLine(uint songLine, uint pattLine)
@@ -131,7 +148,6 @@ private:
 	{
 		if (atomicLoad(_newRequest))
 		{
-			// apparently, running GC from the audio thread causes a crash, at least on Windows.
 			GC.disable();
 			_command();
 			_command = null;
@@ -172,8 +188,20 @@ private:
 	void frameCallback()
 	{
 		ASAPFrameEvent event;
-		event.songPosition = cast(ubyte) _asap.GetSongPosition();
-		event.patternPosition = cast(ubyte) _asap.GetPatternPosition();
+		uint sp = _asap.GetSongPosition();
+		uint pp = _asap.GetPatternPosition();
+		if (_initialPatternPosition >= 0)
+		{
+			event.songPosition = cast(ubyte) _fixedSongPosition;
+			event.patternPosition = cast(ubyte) (sp == 0 ? _initialPatternPosition + pp : pp);
+			if (event.patternPosition > 0x3f)
+				event.patternPosition = 0x3f;
+		}
+		else
+		{
+			event.songPosition = cast(ubyte) sp;
+			event.patternPosition = cast(ubyte) pp;
+		}
 		foreach (chn; 0 .. 8)
 			event.channelVolumes[chn] = cast(ubyte) _asap.GetPokeyChannelVolume(chn);
 		SDL_PushEvent(cast(SDL_Event*) &event);
@@ -184,6 +212,8 @@ private:
 	Audio _audio;
 	Semaphore _sema;
 	bool _silence;
+	uint _fixedSongPosition;
+	int _initialPatternPosition;
 	shared void delegate() _command;
 	shared bool _newRequest;
 }

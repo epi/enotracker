@@ -151,6 +151,13 @@ class PatternEditor : SubWindow
 			draw();
 			return true;
 		}
+		else if (key == SDLKey.SDLK_RETURN)
+		{
+			if (mod & (SDLMod.KMOD_RSHIFT | SDLMod.KMOD_LSHIFT))
+				_player.playPattern(_songLine, 0);
+			else
+				_player.playPattern(_songLine, _pattLine);
+		}
 		return false;
 	}
 
