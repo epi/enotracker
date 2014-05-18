@@ -270,7 +270,7 @@ class TmcFile
 		if (data.length < TmcData.sizeof)
 			throw new TmcLoadException("Data too short");
 		auto main = cast(const(TmcData)*) data.ptr;
-		_title[] = main.title;
+		_title[] = main.title[];
 		_speed = main.speed;
 		_fastplay = main.fastplay;
 
@@ -415,6 +415,8 @@ class TmcFile
 
 	@property ubyte speed() const { return _speed; }
 	@property ubyte fastplay() const { return _fastplay; }
+
+	@property const(char)[] title() const { return _title[]; }
 
 private:
 	static struct TmcData

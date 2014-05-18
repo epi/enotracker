@@ -29,6 +29,7 @@ import player;
 import sdl;
 import song;
 import subwindow;
+import info;
 import tmc;
 
 class Enotracker
@@ -45,11 +46,11 @@ class Enotracker
 		scope(failure) clear(_screen);
 
 		// create and connect windows
-		_songEditor = new SongEditor(_screen, 1, 3, 19);
-		_patternEditor = new PatternEditor(_screen, 1, 23, 48);
-		_instrumentEditor = new InstrumentEditor(_screen, 54, 7);
-		_oscilloscope = new Oscilloscope(_screen, 84, 7, 14, 6);
-		// _nameEditor = new NameEditor(_screen, 54, 3);
+		_songEditor = new SongEditor(_screen, 1, 3, 20);
+		_patternEditor = new PatternEditor(_screen, 1, 24, 48);
+		_instrumentEditor = new InstrumentEditor(_screen, 54, 8);
+		_oscilloscope = new Oscilloscope(_screen, 84, 8, 14, 6);
+		_infoEditor = new InfoEditor(_screen, 54, 3);
 
 		_songEditor.next = _patternEditor;
 		_patternEditor.next = _instrumentEditor;
@@ -71,14 +72,14 @@ class Enotracker
 		_songEditor.tmc = _tmc;
 		_patternEditor.tmc = _tmc;
 		_instrumentEditor.tmc = _tmc;
+		_infoEditor.tmc = _tmc;
 
 		// draw UI
 		_screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
 		_songEditor.active = true;
 		_patternEditor.active = false;
 		_instrumentEditor.active = false;
-		// _nameEditor.active = false;
-		// _speedEditor.active = false;
+		_infoEditor.active = false;
 		_oscilloscope.active = false;
 		_screen.flip();
 	}
@@ -97,8 +98,7 @@ class Enotracker
 		_songEditor.active = true;
 		_patternEditor.active = false;
 		_instrumentEditor.active = false;
-		// _nameEditor.active = false;
-		// _speedEditor.active = false;
+		_infoEditor.active = false;
 		_oscilloscope.active = false;
 		_screen.flip();
 	}
@@ -165,6 +165,7 @@ private:
 	SongEditor _songEditor;
 	PatternEditor _patternEditor;
 	InstrumentEditor _instrumentEditor;
+	InfoEditor _infoEditor;
 	Oscilloscope _oscilloscope;
 	SubWindow _activeWindow;
 	Player _player;
