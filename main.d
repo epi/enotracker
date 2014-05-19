@@ -24,6 +24,7 @@ import std.file;
 import asap;
 import info;
 import instrument;
+import keys;
 import oscilloscope;
 import pattern;
 import player;
@@ -116,13 +117,16 @@ class Enotracker
 				case SDL_EventType.SDL_QUIT:
 					return;
 				case SDL_EventType.SDL_KEYDOWN:
-					if (event.key.keysym.sym == SDLKey.SDLK_F7)
+				{
+					SDLKey key = event.key.keysym.sym;
+					SDLMod mod = event.key.keysym.mod;
+					if (key == SDLKey.SDLK_F7)
 					{
 						_state.followSong = !_state.followSong;
 						_infoEditor.draw();
 						_screen.flip();
 					}
-					if (event.key.keysym.sym == SDLKey.SDLK_F8)
+					else if (key == SDLKey.SDLK_F8)
 					{
 						if (_state.octave > 0)
 						{
@@ -131,7 +135,7 @@ class Enotracker
 							_screen.flip();
 						}
 					}
-					else if (event.key.keysym.sym == SDLKey.SDLK_F9)
+					else if (key == SDLKey.SDLK_F9)
 					{
 						if (_state.octave < 4)
 						{
@@ -140,14 +144,14 @@ class Enotracker
 							_screen.flip();
 						}
 					}
-					else if (event.key.keysym.sym == SDLKey.SDLK_TAB)
+					else if (key == SDLKey.SDLK_TAB)
 					{
 						_activeWindow.active = false;
 						_activeWindow = _activeWindow.next;
 						_activeWindow.active = true;
 						_screen.flip();
 					}
-					else if (event.key.keysym.sym == SDLKey.SDLK_ESCAPE)
+					else if (key == SDLKey.SDLK_ESCAPE)
 					{
 						_player.stop();
 						ubyte[8] zeroChnVol;
@@ -155,9 +159,34 @@ class Enotracker
 						_oscilloscope.update();
 						_screen.flip();
 					}
-					else if (_activeWindow.key(event.key.keysym.sym, event.key.keysym.mod))
+					else if (key == SDLKey.SDLK_z && mod.packModifiers() == Modifiers.ctrl)
+					{
+						if (_state.history.canUndo)
+						{
+							SubWindow previousWindow = _activeWindow;
+							_activeWindow = _state.history.undo();
+							if (_activeWindow !is previousWindow)
+								previousWindow.active = false;
+							_activeWindow.active = true;
+							_screen.flip();
+						}
+					}
+					else if (key == SDLKey.SDLK_z && mod.packModifiers() == (Modifiers.ctrl | Modifiers.shift))
+					{
+						if (_state.history.canRedo)
+						{
+							SubWindow previousWindow = _activeWindow;
+							_activeWindow = _state.history.redo();
+							if (_activeWindow !is previousWindow)
+								previousWindow.active = false;
+							_activeWindow.active = true;
+							_screen.flip();
+						}
+					}
+					else if (_activeWindow.key(key, mod))
 						_screen.flip();
 					break;
+				}
 				case SDL_EventType.SDL_USEREVENT:
 				{
 					auto fevent = cast(const(ASAPFrameEvent)*) &event;
