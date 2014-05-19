@@ -21,9 +21,42 @@
 
 module keys;
 
-public import sdl : SDLKey;
+public import sdl : SDLKey, SDLMod;
 
 uint[SDLKey] noteKeys;
+
+int getHexDigit(SDLKey key, SDLMod mod)
+{
+	if (mod != 0)
+		return -1;
+	if (key >= SDLKey.SDLK_0 && key <= SDLKey.SDLK_9)
+		return key - SDLKey.SDLK_0;
+	if (key >= SDLKey.SDLK_a && key <= SDLKey.SDLK_f)
+		return key - SDLKey.SDLK_a + 10;
+	return -1;
+}
+
+enum Modifiers
+{
+	shift = 1,
+	ctrl = 2,
+	alt = 4,
+	meta = 8,
+}
+
+uint packModifiers(SDLMod mod)
+{
+	uint result;
+	if (mod & (SDLMod.KMOD_LSHIFT | SDLMod.KMOD_RSHIFT))
+		result |= Modifiers.shift;
+	if (mod & (SDLMod.KMOD_LCTRL | SDLMod.KMOD_RCTRL))
+		result |= Modifiers.ctrl;
+	if (mod & (SDLMod.KMOD_LALT | SDLMod.KMOD_RALT))
+		result |= Modifiers.alt;
+	if (mod & (SDLMod.KMOD_LMETA | SDLMod.KMOD_RMETA))
+		result |= Modifiers.meta;
+	return result;
+}
 
 static this()
 {
