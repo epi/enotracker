@@ -43,6 +43,8 @@ class InfoEditor : SubWindow
 		text(1, 2, "Speed:");
 		text(11, 2, "x/Frame:");
 		text(23, 2, "Octave:");
+		if (_state.followSong)
+			text(39, 1, "Follow");
 		fgcolor = active ? Color.ActiveHighlightFg : Color.InactiveHighlightFg;
 		text(8, 1, _tmc.title);
 		textf(8, 2, "%d", _tmc.speed);

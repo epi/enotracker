@@ -29,6 +29,7 @@ import core.sync.semaphore;
 
 import asap;
 import sdl;
+import state;
 import tmc;
 
 struct ASAPFrameEvent
@@ -56,6 +57,7 @@ class Player
 		_silence = true;
 		_asap = new ASAPTmc;
 		_asap.FrameCallback = &this.frameCallback;
+		_asapState = ASAPState.created;
 		_audio = new Audio(44100, SDL_AudioFormat.AUDIO_S16LSB, 2, BufferLength, &this.generate);
 		_sema = new Semaphore;
 		_bufferEvent.data.length = BufferLength / short.sizeof;
@@ -68,17 +70,6 @@ class Player
 		_audio.close();
 	}
 
-	void reload()
-	{
-		executeInAudioThread(()
-		{
-			_asap.load(0x2800, _tmc.save(0x2800, false));
-			_asap.MusicAddr = 0x2800;
-			_asap.Fastplay = 312 / _tmc.fastplay;
-			_asap.InitPlay();
-		});
-	}
-
 	void playSong(uint songLine)
 	{
 		executeInAudioThread(()
@@ -88,9 +79,11 @@ class Player
 			_asap.Fastplay = 312 / _tmc.fastplay;
 			_asap.InitPlay();
 			_asap.PlaySongAt(songLine);
+			_asapState = ASAPState.playedSong;
 			_initialPatternPosition = -1;
 			_silence = false;
 		});
+		_state.playing = State.Playing.song;
 	}
 
 	TmcFile _tempTmc;
@@ -105,24 +98,41 @@ class Player
 			_asap.Fastplay = 312 / _tmc.fastplay;
 			_asap.InitPlay();
 			_asap.PlaySongAt(0);
+			_asapState = ASAPState.playedSong;
 			_fixedSongPosition = songPosition;
 			_initialPatternPosition = patternPosition;
 			_silence = false;
 		});
-	}
-
-	void playLine(uint songLine, uint pattLine)
-	{
-		throw new Exception("not implemented");
+		_state.playing = State.Playing.pattern;
 	}
 
 	void playNote(uint note, uint instr, uint chan)
 	{
-		executeInAudioThread(()
+		if (_state.playing == State.Playing.song || _state.playing == State.Playing.pattern)
 		{
-			_asap.PlayNote(note, instr, chan);
-			_silence = false;
-		});
+			executeInAudioThread(()
+			{
+				_asap.PlayNote(note, instr, chan);
+				_silence = false;
+			});
+		}
+		else
+		{
+			executeInAudioThread(()
+			{
+				if (_asapState != ASAPState.initialized)
+				{
+					_asap.load(0x2800, _tmc.save(0x2800, false));
+					_asap.MusicAddr = 0x2800;
+					_asap.Fastplay = 312 / _tmc.fastplay;
+					_asap.InitPlay();
+					_asapState = ASAPState.initialized;
+				}
+				_asap.PlayNote(note, instr, chan);
+				_silence = false;
+				_state.playing = State.Playing.note;
+			});
+		}
 	}
 
 	void stop()
@@ -132,9 +142,11 @@ class Player
 			_silence = true;
 			postEmptyBufferEvent();
 		});
+		_state.playing = State.Playing.nothing;
 	}
 
 	@property void tmc(TmcFile t) { _tmc = t; }
+	@property void state(State s) { _state = s; }
 
 private:
 	void executeInAudioThread(void delegate() cmd)
@@ -207,9 +219,18 @@ private:
 		SDL_PushEvent(cast(SDL_Event*) &event);
 	}
 
+	enum ASAPState
+	{
+		created,
+		initialized,
+		playedSong,
+	}
+
 	ASAPTmc _asap;
+	ASAPState _asapState;
 	TmcFile _tmc;
 	Audio _audio;
+	State _state;
 	Semaphore _sema;
 	bool _silence;
 	uint _fixedSongPosition;

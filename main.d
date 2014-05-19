@@ -59,11 +59,6 @@ class Enotracker
 		_songEditor.addObserver(&_patternEditor.changeSongLine);
 		_activeWindow = _songEditor;
 
-		// create and attach editor state
-		_state = new State;
-		_instrumentEditor.state = _state;
-		_infoEditor.state = _state;
-
 		// create and attach player
 		_player = new Player;
 		scope(failure) clear(_player);
@@ -71,6 +66,12 @@ class Enotracker
 		_songEditor.player = _player;
 		_patternEditor.player = _player;
 		_instrumentEditor.player = _player;
+
+		// create and attach editor state
+		_state = new State;
+		_instrumentEditor.state = _state;
+		_infoEditor.state = _state;
+		_player.state = _state;
 
 		// create and attach music data object
 		_tmc = new TmcFile;
@@ -100,7 +101,6 @@ class Enotracker
 	{
 		auto content = cast(immutable(ubyte)[]) std.file.read(filename);
 		_tmc.load(content);
-		_player.reload();
 		_songEditor.active = true;
 		_patternEditor.active = false;
 		_instrumentEditor.active = false;
@@ -122,7 +122,13 @@ class Enotracker
 				case SDL_EventType.SDL_QUIT:
 					return;
 				case SDL_EventType.SDL_KEYDOWN:
-					if (event.key.keysym.mod == 0 && event.key.keysym.sym == SDLKey.SDLK_F8)
+					if (event.key.keysym.sym == SDLKey.SDLK_F7)
+					{
+						_state.followSong = !_state.followSong;
+						_infoEditor.draw();
+						_screen.flip();
+					}
+					if (event.key.keysym.sym == SDLKey.SDLK_F8)
 					{
 						if (_state.octave > 0)
 						{
@@ -131,7 +137,7 @@ class Enotracker
 							_screen.flip();
 						}
 					}
-					else if (event.key.keysym.mod == 0 && event.key.keysym.sym == SDLKey.SDLK_F9)
+					else if (event.key.keysym.sym == SDLKey.SDLK_F9)
 					{
 						if (_state.octave < 4)
 						{
@@ -161,8 +167,12 @@ class Enotracker
 				case SDL_EventType.SDL_USEREVENT:
 				{
 					auto fevent = cast(const(ASAPFrameEvent)*) &event;
-					_songEditor.update(fevent.songPosition);
-					_patternEditor.update(fevent.songPosition, fevent.patternPosition);
+					if (_state.followSong
+					 && (_state.playing == State.Playing.pattern || _state.playing == State.Playing.song))
+					{
+						_songEditor.update(fevent.songPosition);
+						_patternEditor.update(fevent.songPosition, fevent.patternPosition);
+					}
 					_patternEditor.drawBars(fevent.channelVolumes);
 					_screen.flip();
 					break;

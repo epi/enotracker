@@ -23,5 +23,15 @@ module state;
 
 class State
 {
+	enum Playing
+	{
+		nothing,
+		note,
+		pattern,
+		song
+	}
+
 	uint octave;
+	bool followSong;
+	Playing playing = Playing.nothing;
 }
