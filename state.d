@@ -21,6 +21,7 @@
 
 module state;
 
+import command;
 import tmc;
 
 class State
@@ -35,11 +36,19 @@ class State
 
 	this()
 	{
-		tmc = new TmcFile;
+		_tmc = new TmcFile;
+		_history = new CommandHistory;
+		_history.tmc = tmc;
 	}
 
-	TmcFile tmc;
+	@property TmcFile tmc() { return _tmc; }
+	@property CommandHistory history() { return _history; }
+
 	uint octave;
 	bool followSong;
 	Playing playing = Playing.nothing;
+
+private:
+	TmcFile _tmc;
+	CommandHistory _history;
 }
