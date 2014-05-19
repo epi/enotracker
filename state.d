@@ -21,6 +21,8 @@
 
 module state;
 
+import tmc;
+
 class State
 {
 	enum Playing
@@ -31,6 +33,12 @@ class State
 		song
 	}
 
+	this()
+	{
+		tmc = new TmcFile;
+	}
+
+	TmcFile tmc;
 	uint octave;
 	bool followSong;
 	Playing playing = Playing.nothing;

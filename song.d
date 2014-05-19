@@ -24,6 +24,7 @@ module song;
 import std.conv;
 
 import player;
+import state;
 import subwindow;
 import tmc;
 
@@ -55,7 +56,7 @@ class SongEditor : SubWindow
 
 	void drawLine(uint i, int pos)
 	{
-		if (pos < 0 || pos >= _tmc.song.length)
+		if (pos < 0 || pos >= _state.tmc.song.length)
 			return;
 		bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		if (i == _centerLine)
@@ -72,8 +73,8 @@ class SongEditor : SubWindow
 		foreach (chn; 0 .. 8)
 		{
 			textf(4 + chn * 6, 3 + i, "%02X-%02X",
-				_tmc.song[pos][chn].pattn,
-				_tmc.song[pos][chn].transp);
+				_state.tmc.song[pos][chn].pattn,
+				_state.tmc.song[pos][chn].transp);
 		}
 	}
 
@@ -83,13 +84,13 @@ class SongEditor : SubWindow
 		final switch (_cursorX % 4)
 		{
 		case 0:
-			return _tmc.song[_position][chn].pattn >> 4;
+			return _state.tmc.song[_position][chn].pattn >> 4;
 		case 1:
-			return _tmc.song[_position][chn].pattn & 0xf;
+			return _state.tmc.song[_position][chn].pattn & 0xf;
 		case 2:
-			return _tmc.song[_position][chn].transp >> 4;
+			return _state.tmc.song[_position][chn].transp >> 4;
 		case 3:
-			return _tmc.song[_position][chn].transp & 0xf;
+			return _state.tmc.song[_position][chn].transp & 0xf;
 		}
 	}
 
@@ -136,7 +137,7 @@ class SongEditor : SubWindow
 		}
 		else if (key == SDLKey.SDLK_DOWN)
 		{
-			if (_position < _tmc.song.length - 1)
+			if (_position < _state.tmc.song.length - 1)
 			{
 				++_position;
 				draw();
@@ -163,7 +164,7 @@ class SongEditor : SubWindow
 		return false;
 	}
 
-	@property void tmc(TmcFile t) { _tmc = t; }
+	@property void state(State s) { _state = s; }
 	@property void player(Player p) { _player = p; }
 
 	alias Observer = void delegate(uint currentSongLine);
@@ -205,6 +206,6 @@ private:
 	uint _maxLines;
 	uint _centerLine;
 	uint _position;
-	TmcFile _tmc;
+	State _state;
 	Player _player;
 }

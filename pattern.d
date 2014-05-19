@@ -25,6 +25,7 @@ import std.algorithm;
 import std.conv;
 
 import player;
+import state;
 import subwindow;
 import tmc;
 
@@ -66,7 +67,7 @@ class PatternEditor : SubWindow
 		else if (line > 0x3f)
 		{
 			++sl;
-			if (sl >= _tmc.song.length)
+			if (sl >= _state.tmc.song.length)
 				return;
 			line = line & 0x3f;
 			fgcolor = active ? Color.ActiveOuterFg : Color.InactiveOuterFg;
@@ -85,20 +86,20 @@ class PatternEditor : SubWindow
 		textf(1, 1 + i, "%02X", line);
 		foreach (chn; 0 .. 8)
 		{
-			uint pattn = _tmc.song[sl][chn].pattn;
+			uint pattn = _state.tmc.song[sl][chn].pattn;
 			if (pattn > 0x7f)
 				continue;
-			textf(4 + chn * 12, 1 + i, "%s", _tmc.patterns[pattn][line]);
+			textf(4 + chn * 12, 1 + i, "%s", _state.tmc.patterns[pattn][line]);
 		}
 	}
 
 	void drawCursor()
 	{
 		uint chn = _cursorX / 4;
-		uint pattn = _tmc.song[_songLine][chn].pattn;
+		uint pattn = _state.tmc.song[_songLine][chn].pattn;
 		auto str = pattn > 0x7f
 			? "            "
-			: to!string(_tmc.patterns[pattn][_pattLine]);
+			: to!string(_state.tmc.patterns[pattn][_pattLine]);
 
 		static struct Range { uint start; uint end; }
 		Range r;
@@ -186,7 +187,7 @@ class PatternEditor : SubWindow
 		}
 	}
 
-	@property void tmc(TmcFile t) { _tmc = t; }
+	@property void state(State s) { _state = s; }
 	@property void player(Player p) { _player = p; }
 
 private:
@@ -208,7 +209,7 @@ private:
 	uint _pattLine;
 	uint _maxLines;
 	uint _centerLine;
-	TmcFile _tmc;
 	Player _player;
+	State _state;
 	uint _cursorX;
 }

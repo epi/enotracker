@@ -50,7 +50,7 @@ class InstrumentEditor : SubWindow
 
 		foreach (i; 0 .. 21)
 		{
-			InstrumentTick tick = _tmc.instruments[_currentInstr].ticks[i];
+			InstrumentTick tick = _state.tmc.instruments[_currentInstr].ticks[i];
 			bar(1 + i, 5, tick.lvolume, Color.Bar,
 				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
 			bar(1 + i, 9, tick.rvolume, Color.Bar,
@@ -62,10 +62,10 @@ class InstrumentEditor : SubWindow
 		}
 
 		foreach (i; 0 .. 9)
-			textf(26, 5 + i, "%02X", _tmc.instruments[_currentInstr].params[i]);
+			textf(26, 5 + i, "%02X", _state.tmc.instruments[_currentInstr].params[i]);
 
 		foreach (i; 0 .. 8)
-			textf(23, 6 + i, "%02x", _tmc.instruments[_currentInstr].arp[i]);
+			textf(23, 6 + i, "%02x", _state.tmc.instruments[_currentInstr].arp[i]);
 		if (active)
 			drawCursor();
 	}
@@ -106,7 +106,6 @@ class InstrumentEditor : SubWindow
 	{
 	}
 
-	@property void tmc(TmcFile t) { _tmc = t; }
 	@property void player(Player p) { _player = p; }
 	@property void state(State s) { _state = s; }
 
@@ -126,7 +125,6 @@ private:
 	}
 
 	uint _currentInstr;
-	TmcFile _tmc;
 	Player _player;
 	State _state;
 }

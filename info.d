@@ -46,9 +46,9 @@ class InfoEditor : SubWindow
 		if (_state.followSong)
 			text(39, 1, "Follow");
 		fgcolor = active ? Color.ActiveHighlightFg : Color.InactiveHighlightFg;
-		text(8, 1, _tmc.title);
-		textf(8, 2, "%d", _tmc.speed);
-		textf(20, 2, "%d", _tmc.fastplay);
+		text(8, 1, _state.tmc.title);
+		textf(8, 2, "%d", _state.tmc.speed);
+		textf(20, 2, "%d", _state.tmc.fastplay);
 		textf(31, 2, "%d-%d", _state.octave + 1, _state.octave + 2);
 		if (active)
 			drawCursor();
@@ -67,7 +67,6 @@ class InfoEditor : SubWindow
 	{
 	}
 	
-	@property void tmc(TmcFile t) { _tmc = t; }
 	@property void state(State s) { _state = s; }
 
 private:
@@ -81,6 +80,5 @@ private:
 		InactiveHighlightFg = 0xc0c0c0,
 	}
 	
-	TmcFile _tmc;
 	State _state;
 }

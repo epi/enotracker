@@ -74,9 +74,9 @@ class Player
 	{
 		executeInAudioThread(()
 		{
-			_asap.load(0x2800, _tmc.save(0x2800, false));
+			_asap.load(0x2800, _state.tmc.save(0x2800, false));
 			_asap.MusicAddr = 0x2800;
-			_asap.Fastplay = 312 / _tmc.fastplay;
+			_asap.Fastplay = 312 / _state.tmc.fastplay;
 			_asap.InitPlay();
 			_asap.PlaySongAt(songLine);
 			_asapState = ASAPState.playedSong;
@@ -90,12 +90,12 @@ class Player
 
 	void playPattern(uint songPosition, uint patternPosition)
 	{
-		_tempTmc.extractOnePosition(_tmc, songPosition, patternPosition);
+		_tempTmc.extractOnePosition(_state.tmc, songPosition, patternPosition);
 		executeInAudioThread(()
 		{
 			_asap.load(0x2800, _tempTmc.save(0x2800, false));
 			_asap.MusicAddr = 0x2800;
-			_asap.Fastplay = 312 / _tmc.fastplay;
+			_asap.Fastplay = 312 / _state.tmc.fastplay;
 			_asap.InitPlay();
 			_asap.PlaySongAt(0);
 			_asapState = ASAPState.playedSong;
@@ -122,9 +122,9 @@ class Player
 			{
 				if (_asapState != ASAPState.initialized)
 				{
-					_asap.load(0x2800, _tmc.save(0x2800, false));
+					_asap.load(0x2800, _state.tmc.save(0x2800, false));
 					_asap.MusicAddr = 0x2800;
-					_asap.Fastplay = 312 / _tmc.fastplay;
+					_asap.Fastplay = 312 / _state.tmc.fastplay;
 					_asap.InitPlay();
 					_asapState = ASAPState.initialized;
 				}
@@ -145,7 +145,6 @@ class Player
 		_state.playing = State.Playing.nothing;
 	}
 
-	@property void tmc(TmcFile t) { _tmc = t; }
 	@property void state(State s) { _state = s; }
 
 private:
@@ -228,7 +227,6 @@ private:
 
 	ASAPTmc _asap;
 	ASAPState _asapState;
-	TmcFile _tmc;
 	Audio _audio;
 	State _state;
 	Semaphore _sema;

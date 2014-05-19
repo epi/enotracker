@@ -69,17 +69,11 @@ class Enotracker
 
 		// create and attach editor state
 		_state = new State;
+		_songEditor.state = _state;
+		_patternEditor.state = _state;
 		_instrumentEditor.state = _state;
 		_infoEditor.state = _state;
 		_player.state = _state;
-
-		// create and attach music data object
-		_tmc = new TmcFile;
-		_player.tmc = _tmc;
-		_songEditor.tmc = _tmc;
-		_patternEditor.tmc = _tmc;
-		_instrumentEditor.tmc = _tmc;
-		_infoEditor.tmc = _tmc;
 
 		// draw UI
 		_screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
@@ -100,7 +94,7 @@ class Enotracker
 	void loadFile(string filename)
 	{
 		auto content = cast(immutable(ubyte)[]) std.file.read(filename);
-		_tmc.load(content);
+		_state.tmc.load(content);
 		_songEditor.active = true;
 		_patternEditor.active = false;
 		_instrumentEditor.active = false;
@@ -195,7 +189,6 @@ class Enotracker
 
 private:
 	Screen _screen;
-	TmcFile _tmc;
 	SongEditor _songEditor;
 	PatternEditor _patternEditor;
 	InstrumentEditor _instrumentEditor;
