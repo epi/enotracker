@@ -26,6 +26,7 @@ import std.conv;
 
 import keys;
 import player;
+import state;
 import subwindow;
 import tmc;
 
@@ -79,7 +80,12 @@ class InstrumentEditor : SubWindow
 		{
 			uint note = noteKeys.get(key, 0);
 			if (note)
+			{
+				note += 12 * _state.octave;
+				if (note > 63)
+					note = 63;
 				_player.playNote(note, _currentInstr, 0);
+			}
 		}
 		if (key == SDLKey.SDLK_PAGEUP)
 		{
@@ -102,6 +108,7 @@ class InstrumentEditor : SubWindow
 
 	@property void tmc(TmcFile t) { _tmc = t; }
 	@property void player(Player p) { _player = p; }
+	@property void state(State s) { _state = s; }
 
 private:
 	enum Color
@@ -121,4 +128,5 @@ private:
 	uint _currentInstr;
 	TmcFile _tmc;
 	Player _player;
+	State _state;
 }

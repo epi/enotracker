@@ -22,14 +22,15 @@
 import std.file;
 
 import asap;
+import info;
 import instrument;
 import oscilloscope;
 import pattern;
 import player;
 import sdl;
 import song;
+import state;
 import subwindow;
-import info;
 import tmc;
 
 class Enotracker
@@ -57,6 +58,11 @@ class Enotracker
 		_instrumentEditor.next = _songEditor;
 		_songEditor.addObserver(&_patternEditor.changeSongLine);
 		_activeWindow = _songEditor;
+
+		// create and attach editor state
+		_state = new State;
+		_instrumentEditor.state = _state;
+		_infoEditor.state = _state;
 
 		// create and attach player
 		_player = new Player;
@@ -116,7 +122,25 @@ class Enotracker
 				case SDL_EventType.SDL_QUIT:
 					return;
 				case SDL_EventType.SDL_KEYDOWN:
-					if (event.key.keysym.sym == SDLKey.SDLK_TAB)
+					if (event.key.keysym.mod == 0 && event.key.keysym.sym == SDLKey.SDLK_F8)
+					{
+						if (_state.octave > 0)
+						{
+							--_state.octave;
+							_infoEditor.draw();
+							_screen.flip();
+						}
+					}
+					else if (event.key.keysym.mod == 0 && event.key.keysym.sym == SDLKey.SDLK_F9)
+					{
+						if (_state.octave < 4)
+						{
+							++_state.octave;
+							_infoEditor.draw();
+							_screen.flip();
+						}
+					}
+					else if (event.key.keysym.sym == SDLKey.SDLK_TAB)
 					{
 						_activeWindow.active = false;
 						_activeWindow = _activeWindow.next;
@@ -169,6 +193,7 @@ private:
 	Oscilloscope _oscilloscope;
 	SubWindow _activeWindow;
 	Player _player;
+	State _state;
 }
 
 void main(string[] args)

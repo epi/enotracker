@@ -21,6 +21,7 @@
 
 module info;
 
+import state;
 import subwindow;
 import tmc;
 
@@ -46,7 +47,7 @@ class InfoEditor : SubWindow
 		text(8, 1, _tmc.title);
 		textf(8, 2, "%d", _tmc.speed);
 		textf(20, 2, "%d", _tmc.fastplay);
-		textf(31, 2, "%d-%d", 1, 2);
+		textf(31, 2, "%d-%d", _state.octave + 1, _state.octave + 2);
 		if (active)
 			drawCursor();
 	}
@@ -65,7 +66,8 @@ class InfoEditor : SubWindow
 	}
 	
 	@property void tmc(TmcFile t) { _tmc = t; }
-	
+	@property void state(State s) { _state = s; }
+
 private:
 	enum Color
 	{
@@ -78,4 +80,5 @@ private:
 	}
 	
 	TmcFile _tmc;
+	State _state;
 }
