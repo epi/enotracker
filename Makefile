@@ -1,4 +1,4 @@
-src := main.d tmc.d sdl.d pattern.d song.d instrument.d oscilloscope.d subwindow.d asap.d player.d keys.d info.d state.d
+src := main.d tmc.d sdl.d pattern.d song.d instrument.d oscilloscope.d subwindow.d asap.d player.d keys.d info.d state.d command.d
 
 xtmc: $(src) default.fnt
 	dmd $(src) -g -J. -of$@
