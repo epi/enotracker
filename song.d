@@ -23,6 +23,8 @@ module song;
 
 import std.conv;
 
+import command;
+import keys;
 import player;
 import state;
 import subwindow;
@@ -78,20 +80,44 @@ class SongEditor : SubWindow
 		}
 	}
 
-	ubyte getDigitUnderCursor()
+	static ubyte getDigitUnderCursor(TmcFile tmc, uint position, uint cursorX)
 	{
-		uint chn = _cursorX / 4;
-		final switch (_cursorX % 4)
+		uint chn = cursorX / 4;
+		final switch (cursorX % 4)
 		{
 		case 0:
-			return _state.tmc.song[_position][chn].pattn >> 4;
+			return tmc.song[position][chn].pattn >> 4;
 		case 1:
-			return _state.tmc.song[_position][chn].pattn & 0xf;
+			return tmc.song[position][chn].pattn & 0xf;
 		case 2:
-			return _state.tmc.song[_position][chn].transp >> 4;
+			return tmc.song[position][chn].transp >> 4;
 		case 3:
-			return _state.tmc.song[_position][chn].transp & 0xf;
+			return tmc.song[position][chn].transp & 0xf;
 		}
+	}
+
+	static void setDigitUnderCursor(TmcFile tmc, uint position, uint cursorX, uint digit)
+	{
+		uint chn = cursorX / 4;
+		final switch (cursorX % 4)
+		{
+		case 0:
+			tmc.song[position][chn].pattn = cast(ubyte) ((tmc.song[position][chn].pattn & 0xf) | (digit << 4));
+			break;
+		case 1:
+			tmc.song[position][chn].pattn = cast(ubyte) ((tmc.song[position][chn].pattn & 0xf0) | digit);
+			break;
+		case 2:
+			tmc.song[position][chn].transp = cast(ubyte) ((tmc.song[position][chn].transp & 0xf) | (digit << 4));
+			break;
+		case 3:
+			tmc.song[position][chn].transp = cast(ubyte) ((tmc.song[position][chn].transp & 0xf0) | digit);
+		}
+	}
+
+	ubyte getDigitUnderCursor()
+	{
+		return getDigitUnderCursor(_state.tmc, _position, _cursorX);
 	}
 
 	void drawCursor()
@@ -160,6 +186,56 @@ class SongEditor : SubWindow
 		else if (key == SDLKey.SDLK_F12)
 		{
 			_player.playSong(_position + 1);
+		}
+		else
+		{
+			int digit = getHexDigit(key, mod);
+			if (digit >= 0)
+			{
+				_state.history.execute(new class(this, _position, _cursorX, digit) Command
+					{
+						this(SongEditor se, uint songPosition, uint cursorPosition, uint digit)
+						{
+							_se = se;
+							_songPosition = songPosition;
+							_cursorPosition = cursorPosition;
+							_digit = digit;
+						}
+
+						SubWindow execute(TmcFile tmc)
+						{
+							doExecute(tmc);
+							_se._cursorX = (_se._cursorX + 1) % 32;
+							_se.notify();
+							return _se;
+						}
+
+						SubWindow undo(TmcFile tmc)
+						{
+							doExecute(tmc);
+							_se.notify();
+							return _se;
+						}
+
+					private:
+						void doExecute(TmcFile tmc)
+						{
+							uint oldDigit = getDigitUnderCursor(tmc, _songPosition, _cursorPosition);
+							setDigitUnderCursor(tmc, _songPosition, _cursorPosition, _digit);
+							_digit = oldDigit;
+							_se._position = _songPosition;
+							_se._cursorX = _cursorPosition;
+						}
+
+						SongEditor _se;
+						uint _songPosition;
+						uint _cursorPosition;
+						uint _digit;
+					});
+				drawLine(_centerLine, _position);
+				drawCursor();
+				return true;
+			}
 		}
 		return false;
 	}
