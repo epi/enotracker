@@ -20,6 +20,8 @@
 */
 
 import std.file : read;
+import std.path : baseName;
+import std.string : toStringz;
 
 import asap;
 import info;
@@ -84,6 +86,8 @@ class Enotracker
 		_infoEditor.active = false;
 		_oscilloscope.active = false;
 		_screen.flip();
+
+		SDL_WM_SetCaption("enotracker", "enotracker");
 	}
 
 	~this()
@@ -102,6 +106,8 @@ class Enotracker
 		_infoEditor.active = false;
 		_oscilloscope.active = false;
 		_screen.flip();
+		auto title = (filename.baseName() ~ " - enotracker").toStringz();
+		SDL_WM_SetCaption(title, title);
 	}
 
 	void processEvents()

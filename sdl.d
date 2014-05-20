@@ -775,3 +775,6 @@ private:
 	void delegate(ubyte[] stream) _delegate;
 }
 
+extern (C)
+void SDL_WM_SetCaption(const(char)* title, const(char)* icon);
+
