@@ -19,7 +19,7 @@
 	along with enotracker.  If not, see $(LINK http://www.gnu.org/licenses/).
 */
 
-import std.file;
+import std.file : read;
 
 import asap;
 import info;
@@ -117,76 +117,9 @@ class Enotracker
 				case SDL_EventType.SDL_QUIT:
 					return;
 				case SDL_EventType.SDL_KEYDOWN:
-				{
-					SDLKey key = event.key.keysym.sym;
-					SDLMod mod = event.key.keysym.mod;
-					if (key == SDLKey.SDLK_F7)
-					{
-						_state.followSong = !_state.followSong;
-						_infoEditor.draw();
-						_screen.flip();
-					}
-					else if (key == SDLKey.SDLK_F8)
-					{
-						if (_state.octave > 0)
-						{
-							--_state.octave;
-							_infoEditor.draw();
-							_screen.flip();
-						}
-					}
-					else if (key == SDLKey.SDLK_F9)
-					{
-						if (_state.octave < 4)
-						{
-							++_state.octave;
-							_infoEditor.draw();
-							_screen.flip();
-						}
-					}
-					else if (key == SDLKey.SDLK_TAB)
-					{
-						_activeWindow.active = false;
-						_activeWindow = _activeWindow.next;
-						_activeWindow.active = true;
-						_screen.flip();
-					}
-					else if (key == SDLKey.SDLK_ESCAPE)
-					{
-						_player.stop();
-						ubyte[8] zeroChnVol;
-						_patternEditor.drawBars(zeroChnVol[]);
-						_oscilloscope.update();
-						_screen.flip();
-					}
-					else if (key == SDLKey.SDLK_z && mod.packModifiers() == Modifiers.ctrl)
-					{
-						if (_state.history.canUndo)
-						{
-							SubWindow previousWindow = _activeWindow;
-							_activeWindow = _state.history.undo();
-							if (_activeWindow !is previousWindow)
-								previousWindow.active = false;
-							_activeWindow.active = true;
-							_screen.flip();
-						}
-					}
-					else if (key == SDLKey.SDLK_z && mod.packModifiers() == (Modifiers.ctrl | Modifiers.shift))
-					{
-						if (_state.history.canRedo)
-						{
-							SubWindow previousWindow = _activeWindow;
-							_activeWindow = _state.history.redo();
-							if (_activeWindow !is previousWindow)
-								previousWindow.active = false;
-							_activeWindow.active = true;
-							_screen.flip();
-						}
-					}
-					else if (_activeWindow.key(key, mod))
+					if (handleKeyDown(event.key.keysym.sym, event.key.keysym.mod))
 						_screen.flip();
 					break;
-				}
 				case SDL_EventType.SDL_USEREVENT:
 				{
 					auto fevent = cast(const(ASAPFrameEvent)*) &event;
@@ -217,6 +150,84 @@ class Enotracker
 	}
 
 private:
+	bool handleKeyDown(SDLKey key, SDLMod mod)
+	{
+		if (key == SDLKey.SDLK_F7)
+		{
+			_state.followSong = !_state.followSong;
+			_infoEditor.draw();
+			return true;
+		}
+		else if (key == SDLKey.SDLK_F8)
+		{
+			if (_state.octave > 0)
+			{
+				--_state.octave;
+				_infoEditor.draw();
+				return true;
+			}
+		}
+		else if (key == SDLKey.SDLK_F9)
+		{
+			if (_state.octave < 4)
+			{
+				++_state.octave;
+				_infoEditor.draw();
+				return true;
+			}
+		}
+		else if (key == SDLKey.SDLK_TAB)
+		{
+			_activeWindow.active = false;
+			_activeWindow = _activeWindow.next;
+			_activeWindow.active = true;
+			return true;
+		}
+		else if (key == SDLKey.SDLK_ESCAPE)
+		{
+			_player.stop();
+			_patternEditor.draw();
+			_oscilloscope.update();
+			return true;
+		}
+		else if (key == SDLKey.SDLK_z && mod.packModifiers() == Modifiers.ctrl)
+		{
+			if (_state.history.canUndo)
+			{
+				SubWindow previousWindow = _activeWindow;
+				_activeWindow = _state.history.undo();
+				if (_activeWindow !is previousWindow)
+					previousWindow.active = false;
+				_activeWindow.active = true;
+				return true;
+			}
+		}
+		else if (key == SDLKey.SDLK_z && mod.packModifiers() == (Modifiers.ctrl | Modifiers.shift))
+		{
+			if (_state.history.canRedo)
+			{
+				SubWindow previousWindow = _activeWindow;
+				_activeWindow = _state.history.redo();
+				if (_activeWindow !is previousWindow)
+					previousWindow.active = false;
+				_activeWindow.active = true;
+				return true;
+			}
+		}
+		else if (key == SDLKey.SDLK_SPACE)
+		{
+			_state.editing = !_state.editing;
+			if (_state.editing)
+			{
+				if (_state.playing != State.Playing.nothing)
+					_player.stop();
+			}
+			_patternEditor.draw();
+			return true;
+		}
+		return _activeWindow.key(key, mod);
+	}
+
 	Screen _screen;
 	SongEditor _songEditor;
 	PatternEditor _patternEditor;
