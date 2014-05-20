@@ -174,10 +174,19 @@ class SongEditor : SubWindow
 		}
 		else if (key == SDLKey.SDLK_RETURN)
 		{
-			if (mod & (SDLMod.KMOD_RSHIFT | SDLMod.KMOD_LSHIFT))
-				_player.playSong(0);
-			else
+			switch (mod.packModifiers())
+			{
+			case Modifiers.none:
 				_player.playSong(_position);
+				break;
+			case Modifiers.shift:
+				_player.playSong(0);
+				break;
+			default:
+				break;
+			}
+			_state.editing = false;
+			return true;
 		}
 		else if (key == SDLKey.SDLK_F10)
 		{
@@ -187,7 +196,7 @@ class SongEditor : SubWindow
 		{
 			_player.playSong(_position + 1);
 		}
-		else
+		else if (_state.editing)
 		{
 			int digit = getHexDigit(key, mod);
 			if (digit >= 0)
