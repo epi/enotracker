@@ -24,6 +24,7 @@ module pattern;
 import std.algorithm;
 import std.conv;
 
+import keys;
 import player;
 import state;
 import subwindow;
@@ -154,10 +155,19 @@ class PatternEditor : SubWindow
 		}
 		else if (key == SDLKey.SDLK_RETURN)
 		{
-			if (mod & (SDLMod.KMOD_RSHIFT | SDLMod.KMOD_LSHIFT))
-				_player.playPattern(_songLine, 0);
-			else
+			switch (mod.packModifiers())
+			{
+			case Modifiers.none:
 				_player.playPattern(_songLine, _pattLine);
+				break;
+			case Modifiers.shift:
+				_player.playPattern(_songLine, 0);
+				break;
+			default:
+				break;
+			}
+			_state.editing = false;
+			return true;
 		}
 		return false;
 	}
