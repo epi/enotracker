@@ -45,6 +45,8 @@ class InfoEditor : SubWindow
 		text(23, 2, "Octave:");
 		if (_state.followSong)
 			text(39, 1, "Follow");
+		if (_state.editing)
+			text(41, 2, "Edit");
 		fgcolor = active ? Color.ActiveHighlightFg : Color.InactiveHighlightFg;
 		text(8, 1, _state.tmc.title);
 		textf(8, 2, "%d", _state.tmc.speed);
@@ -63,11 +65,11 @@ class InfoEditor : SubWindow
 		return false;
 	}
 	
-	void update(uint sl, uint pl)
+	@property void state(State s)
 	{
+		_state = s;
+		s.addEditingObserver("info", dummyBool => this.draw());
 	}
-	
-	@property void state(State s) { _state = s; }
 
 private:
 	enum Color
