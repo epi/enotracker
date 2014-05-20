@@ -21,8 +21,33 @@
 
 module state;
 
+import std.ascii : toUpper;
+import std.array : replace;
+
 import command;
 import tmc;
+
+private string generateObservableProperty(string type, string name)
+{
+	return
+		q{
+			public @property $type$ $name$() const pure nothrow { return _$name$; }
+			public @property void $name$($type$ v)
+			{
+				_$name$ = v;
+				foreach (n, obs; _$name$Observers) obs(v);
+			}
+			public void add$uname$Observer(string name, void delegate($type$) obs)
+			{
+				_$name$Observers[name] = obs;
+			}
+			private $type$ _$name$;
+			private void delegate($type$)[string] _$name$Observers;
+		}
+		.replace("$type$", type)
+		.replace("$name$", name)
+		.replace("$uname$", name[0].toUpper ~ name[1 .. $]);
+}
 
 class State
 {
@@ -47,6 +72,8 @@ class State
 	uint octave;
 	bool followSong;
 	Playing playing = Playing.nothing;
+
+	mixin(generateObservableProperty("bool", "editing"));
 
 private:
 	TmcFile _tmc;
