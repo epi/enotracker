@@ -38,6 +38,7 @@ int getHexDigit(SDLKey key, SDLMod mod)
 
 enum Modifiers
 {
+	none = 0,
 	shift = 1,
 	ctrl = 2,
 	alt = 4,
