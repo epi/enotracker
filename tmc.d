@@ -142,11 +142,6 @@ align(1) struct SongEntry
 	ubyte transp;
 	ubyte pattn;
 
-	@property bool empty() const pure nothrow
-	{
-		return transp == 0xff && pattn == 0xff;
-	}
-	
 	@property string toString() const
 	{
 		return format("%02X-%02X", pattn, transp);
@@ -155,24 +150,13 @@ align(1) struct SongEntry
 
 struct SongLine
 {
-	SongEntry[8] chan;
-
 	ref inout(SongEntry) opIndex(uint c) inout { return chan[7 - c]; }
 
-	@property bool empty() const pure nothrow
-	{
-		return all!"a.empty"(chan[]);
-	}
-
-	@property bool last() const pure nothrow
-	{
-		return chan[7].pattn >= 0x80;
-	}
-
-	@property string toString() const
-	{
-		return chan[].retro().map!(x => x.toString())().join(" ");
-	}
+	private SongEntry[8] chan = [
+		SongEntry(0xff, 0x7f), SongEntry(0xff, 0x7f),
+		SongEntry(0xff, 0x7f), SongEntry(0xff, 0x7f),
+		SongEntry(0xff, 0x7f), SongEntry(0xff, 0x7f),
+		SongEntry(0xff, 0x7f), SongEntry(0xff, 0xff) ];
 }
 
 static assert(SongLine.sizeof == 16);
@@ -215,11 +199,7 @@ class TmcFile
 
 	void reset()
 	{
-		SongLine sl;
-		foreach (ref ch; sl.chan[0 .. $ - 1])
-			ch = SongEntry(0x7f, 0xff);
-		sl.chan[$ - 1] = SongEntry(0x00, 0x80);
-		_song = [ sl ];
+		_song = [ SongLine.init ];
 		foreach (ref p; _patterns)
 			p = new Pattern;
 		_title[] = ' ';
@@ -275,11 +255,7 @@ class TmcFile
 		_fastplay = main.fastplay;
 
 		// read song data
-		auto songData = cast(const(SongLine)[]) data[TmcData.sizeof .. $ & ~15];
-		auto songLength = songData.countUntil!(line => line.last)();
-		if (songLength < 0)
-			throw new TmcLoadException("Invalid song data");
-		_song = songData[0 .. songLength + 1].dup;
+		size_t lowestAddr = data.length & ~15;
 
 		// read instrument data
 		foreach (ins; 0 .. 0x40)
@@ -294,6 +270,8 @@ class TmcFile
 						format("Instrument %02X address out of range", ins));
 				_instruments[ins] =
 					* cast(const(Instrument)*) data[addr .. $];
+				if (addr < lowestAddr)
+					lowestAddr = addr & ~15;
 			}
 		}
 
@@ -308,8 +286,15 @@ class TmcFile
 					throw new TmcLoadException(
 						format("Pattern %02X address out of range", pat));
 				_patterns[pat] = parsePattern(data[addr .. $]);
+				if (addr < lowestAddr)
+					lowestAddr = addr & ~15;
 			}
 		}
+
+		_song = (cast(const(SongLine)[]) data[TmcData.sizeof .. lowestAddr]).dup;
+		if (_song.length > 0x7f)
+			throw new TmcLoadException("Song data too long");
+		_song ~= SongLine.init;
 	}
 
 	Pattern parsePattern(const(ubyte)[] data)
