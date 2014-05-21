@@ -199,7 +199,9 @@ class SongEditor : SubWindow
 		else if (_state.editing)
 		{
 			int digit = getHexDigit(key, mod);
-			if (digit >= 0)
+			if (digit >= 0
+			 && (_cursorX == 0 || (_cursorX & 3) != 0 || digit < 8)
+			 && (_position < _state.tmc.song.length - 1 || _cursorX == 2 || _cursorX == 3))
 			{
 				_state.history.execute(new class(this, _position, _cursorX, digit) Command
 					{
