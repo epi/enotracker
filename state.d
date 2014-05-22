@@ -69,6 +69,7 @@ class State
 	@property TmcFile tmc() { return _tmc; }
 	@property CommandHistory history() { return _history; }
 
+	uint instrument;
 	uint octave;
 	bool followSong;
 	Playing playing = Playing.nothing;

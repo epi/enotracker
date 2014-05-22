@@ -37,7 +37,6 @@ class InstrumentEditor : SubWindow
 		enum w = 21 + 1 + 2 + 1 + 2 + 2;
 		enum h = 4 * 2 + 1 + 4 + 2;
 		super(s, x, y, w, h);
-		_currentInstr = 0;
 	}
 
 	override void draw()
@@ -46,11 +45,11 @@ class InstrumentEditor : SubWindow
 		bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		box(0, 0, width, height, bgcolor);
 		text(23, 1, "Ins");
-		textf(23, 2, "-%02X", _currentInstr);
+		textf(23, 2, "-%02X", _state.instrument);
 
 		foreach (i; 0 .. 21)
 		{
-			InstrumentTick tick = _state.tmc.instruments[_currentInstr].ticks[i];
+			InstrumentTick tick = _state.tmc.instruments[_state.instrument].ticks[i];
 			bar(1 + i, 5, tick.lvolume, Color.Bar,
 				active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
 			bar(1 + i, 9, tick.rvolume, Color.Bar,
@@ -62,10 +61,10 @@ class InstrumentEditor : SubWindow
 		}
 
 		foreach (i; 0 .. 9)
-			textf(26, 5 + i, "%02X", _state.tmc.instruments[_currentInstr].params[i]);
+			textf(26, 5 + i, "%02X", _state.tmc.instruments[_state.instrument].params[i]);
 
 		foreach (i; 0 .. 8)
-			textf(23, 6 + i, "%02x", _state.tmc.instruments[_currentInstr].arp[i]);
+			textf(23, 6 + i, "%02x", _state.tmc.instruments[_state.instrument].arp[i]);
 		if (active)
 			drawCursor();
 	}
@@ -84,18 +83,18 @@ class InstrumentEditor : SubWindow
 				note += 12 * _state.octave;
 				if (note > 63)
 					note = 63;
-				_player.playNote(note, _currentInstr, 0);
+				_player.playNote(note, _state.instrument, 0);
 			}
 		}
 		if (key == SDLKey.SDLK_PAGEUP)
 		{
-			_currentInstr = (_currentInstr - 1) & 0x3f;
+			_state.instrument = (_state.instrument - 1) & 0x3f;
 			draw();
 			return true;
 		}
 		else if (key == SDLKey.SDLK_PAGEDOWN)
 		{
-			_currentInstr = (_currentInstr + 1) & 0x3f;
+			_state.instrument = (_state.instrument + 1) & 0x3f;
 			draw();
 			return true;
 		}
@@ -124,7 +123,6 @@ private:
 		Bar = 0xd0b030,
 	}
 
-	uint _currentInstr;
 	Player _player;
 	State _state;
 }
