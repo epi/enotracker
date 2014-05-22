@@ -152,6 +152,12 @@ struct SongLine
 {
 	ref inout(SongEntry) opIndex(uint c) inout { return chan[7 - c]; }
 
+	static immutable(SongLine) zero = { chan : [
+		SongEntry(0, 0), SongEntry(0, 0),
+		SongEntry(0, 0), SongEntry(0, 0),
+		SongEntry(0, 0), SongEntry(0, 0),
+		SongEntry(0, 0), SongEntry(0, 0) ] };
+
 	private SongEntry[8] chan = [
 		SongEntry(0xff, 0x7f), SongEntry(0xff, 0x7f),
 		SongEntry(0xff, 0x7f), SongEntry(0xff, 0x7f),
@@ -160,6 +166,46 @@ struct SongLine
 }
 
 static assert(SongLine.sizeof == 16);
+
+class Song
+{
+	this()
+	{
+	}
+
+	this(const(SongLine)[] lines)
+	{
+		_lines ~= lines;
+	}
+
+	void opOpAssign(string op)(SongLine[] lines ...) if (op == "~")
+	{
+		_lines ~= lines;
+	}
+
+	enum size_t maxLength = 0x80;
+	@property size_t length() pure nothrow const { return _lines.length; }
+	alias opDollar = length;
+
+	ref inout(SongLine) opIndex(size_t i) inout { return _lines[i]; }
+	inout(SongLine)[] opSlice() inout { return _lines[]; }
+
+	void insert(size_t i, ref const(SongLine) line = SongLine.zero)
+	{
+		_lines.length = _lines.length + 1;
+		copy(retro(_lines[i .. $ - 1]), retro(_lines[i + 1 .. $]));
+		_lines[i] = line;
+	}
+
+	void erase(size_t i)
+	{
+		copy(_lines[i + 1 .. $], _lines[i .. $ - 1]);
+		_lines.length = _lines.length - 1;
+	}
+
+private:
+	SongLine[] _lines;
+}
 
 align(1) struct InstrumentTick
 {
@@ -199,7 +245,7 @@ class TmcFile
 
 	void reset()
 	{
-		_song = [ SongLine.init ];
+		_song = new Song([ SongLine.init ]);
 		foreach (ref p; _patterns)
 			p = new Pattern;
 		_title[] = ' ';
@@ -229,7 +275,7 @@ class TmcFile
 		}
 		sl3.chan[$ - 1] = SongEntry(0x01, 0x80);
 		_instruments[] = other._instruments[];
-		_song = [ sl1, sl2, sl3 ];
+		_song = new Song([ sl1, sl2, sl3 ]);
 		_speed = other._speed;
 		_fastplay = other._fastplay;
 	}
@@ -291,7 +337,7 @@ class TmcFile
 			}
 		}
 
-		_song = (cast(const(SongLine)[]) data[TmcData.sizeof .. lowestAddr]).dup;
+		_song = new Song(cast(const(SongLine)[]) data[TmcData.sizeof .. lowestAddr]);
 		if (_song.length > 0x7f)
 			throw new TmcLoadException("Song data too long");
 		_song ~= SongLine.init;
@@ -396,7 +442,7 @@ class TmcFile
 
 	@property inout(Instrument)[] instruments() inout { return _instruments; }
 	@property inout(Pattern)[] patterns() inout { return _patterns; }
-	@property inout(SongLine)[] song() inout { return _song; }
+	@property inout(Song) song() inout { return _song; }
 
 	@property ubyte speed() const { return _speed; }
 	@property ubyte fastplay() const { return _fastplay; }
@@ -420,7 +466,7 @@ private:
 	ubyte _speed;
 	ubyte _fastplay;
 	
-	SongLine[] _song;
+	Song _song;
 	Instrument[0x40] _instruments;
 	Pattern[0x80] _patterns;
 }
