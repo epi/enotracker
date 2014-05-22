@@ -24,6 +24,7 @@ module pattern;
 import std.algorithm;
 import std.conv;
 
+import command;
 import keys;
 import player;
 import state;
@@ -121,55 +122,165 @@ class PatternEditor : SubWindow
 			4 + chn * 12 + r.start, 1 + _centerLine, str[r.start .. r.end]);
 	}
 
-	override bool key(SDLKey key, SDLMod mod)
+	override bool key(SDLKey key, SDLMod m)
 	{
-		if (key == SDLKey.SDLK_LEFT)
+		auto mod = m.packModifiers();
+		auto km = KeyMod(key, mod);
+
+		if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.none))
 		{
-			if (mod & (SDLMod.KMOD_RCTRL | SDLMod.KMOD_LCTRL))
-				_cursorX = (_cursorX - 1) & 0x1c;
-			else
-				_cursorX = (_cursorX - 1) & 0x1f;
-			draw();
-			return true;
+			_cursorX = (_cursorX - 1) & 0x1f;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_RIGHT)
+		else if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.ctrl))
 		{
-			if (mod & (SDLMod.KMOD_RCTRL | SDLMod.KMOD_LCTRL))
-				_cursorX = (_cursorX + 4) & 0x1c;
-			else
-				_cursorX = (_cursorX + 1) & 0x1f;
-			draw();
-			return true;
+			_cursorX = (_cursorX - 1) & 0x1c;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_UP)
+		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.none))
 		{
-			_pattLine = (_pattLine - 1) & 0x3f;
-			draw();
-			return true;
+			_cursorX = (_cursorX + 1) & 0x1f;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_DOWN)
+		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.ctrl))
 		{
-			_pattLine = (_pattLine + 1) & 0x3f;
-			draw();
-			return true;
+			_cursorX = (_cursorX + 4) & 0x1c;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_RETURN)
+		else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.none))
 		{
-			switch (mod.packModifiers())
+			_cursorX = 0;
+			goto redrawLine;
+		}
+		else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.none))
+		{
+			_cursorX = 0x1c;
+			goto redrawLine;
+		}
+		else if (!_state.followSong
+		      || _state.playing == State.Playing.nothing
+		      || _state.playing == State.Playing.note)
+		{
+			if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none) && _pattLine > 0)
+			{
+				--_pattLine;
+				goto redrawWindow;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.none) && _pattLine < 0x3f)
+			{
+				++_pattLine;
+				goto redrawWindow;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.none) && _pattLine > 0)
+			{
+				if (_pattLine > 8)
+					_pattLine -= 8;
+				else
+					_pattLine = 0;
+				goto redrawWindow;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.none) && _pattLine < 0x3f)
+			{
+				_pattLine += 8;
+				if (_pattLine > 0x3f)
+					_pattLine = 0x3f;
+				goto redrawWindow;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.ctrl))
+			{
+				_cursorX = 0;
+				_pattLine = 0;
+				goto redrawWindow;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.ctrl))
+			{
+				_cursorX = 0;
+				_pattLine = 0x3f;
+				goto redrawWindow;
+			}
+		}
+
+		if (key == SDLKey.SDLK_RETURN)
+		{
+			switch (mod)
 			{
 			case Modifiers.none:
 				_player.playPattern(_songLine, _pattLine);
-				break;
+				goto disableEditing;
 			case Modifiers.shift:
 				_player.playPattern(_songLine, 0);
-				break;
+				goto disableEditing;
 			default:
-				break;
+				return false;
 			}
-			_state.editing = false;
-			return true;
+		}
+
+		if (mod == Modifiers.none && _cursorX % 4 == 0)
+		{
+			uint note = noteKeys.get(key, 0);
+			if (note >= 1)
+			{
+				note += _state.octave * 12;
+				if (note <= 0x3f)
+				{
+					_player.playNote(note, _state.instrument, _cursorX / 4);
+					if (_state.editing)
+					{
+						_state.history.execute(new class(this, _songLine, _pattLine, _cursorX / 4, note, _state.instrument) Command
+							{
+								this(PatternEditor pe, uint songPosition, uint patternPosition, uint track, uint note, uint instrument)
+								{
+									_pe = pe;
+									_songPosition = songPosition;
+									_patternPosition = patternPosition;
+									_track = track;
+									auto patt = _pe._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track); 
+									_line = patt[patternPosition];
+									_line.note = cast(ubyte) note;
+									_line.instr = cast(ubyte) instrument;
+									_line.vol = 0x00;
+									_line.setVol = true;
+								}
+
+								SubWindow execute(TmcFile tmc)
+								{
+									undo(tmc);
+									if (_pe._pattLine < 0x3f)
+										++_pe._pattLine;
+									return _pe;
+								}
+
+								SubWindow undo(TmcFile tmc)
+								{
+									auto patt = tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
+									swap(patt[_patternPosition], _line);
+									_pe._songLine = _songPosition;
+									_pe._pattLine = _patternPosition;
+									return _pe;
+								}
+
+							private:
+								PatternEditor _pe;
+								Pattern.Line _line;
+								uint _songPosition;
+								uint _patternPosition;
+								uint _track;
+							});
+						goto redrawWindow;
+					}
+				}
+				return false;
+			}
 		}
 		return false;
+redrawLine:
+redrawWindow:
+		draw();
+		return true;
+
+disableEditing:
+		_state.editing = false;
+		return true;
 	}
 
 	void changeSongLine(uint currentSongLine)
