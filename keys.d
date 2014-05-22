@@ -25,10 +25,8 @@ public import sdl : SDLKey, SDLMod;
 
 uint[SDLKey] noteKeys;
 
-int getHexDigit(SDLKey key, SDLMod mod)
+int getHexDigit(SDLKey key)
 {
-	if (mod != 0)
-		return -1;
 	if (key >= SDLKey.SDLK_0 && key <= SDLKey.SDLK_9)
 		return key - SDLKey.SDLK_0;
 	if (key >= SDLKey.SDLK_a && key <= SDLKey.SDLK_f)
@@ -45,7 +43,7 @@ enum Modifiers
 	meta = 8,
 }
 
-uint packModifiers(SDLMod mod)
+Modifiers packModifiers(SDLMod mod)
 {
 	uint result;
 	if (mod & (SDLMod.KMOD_LSHIFT | SDLMod.KMOD_RSHIFT))
@@ -56,7 +54,13 @@ uint packModifiers(SDLMod mod)
 		result |= Modifiers.alt;
 	if (mod & (SDLMod.KMOD_LMETA | SDLMod.KMOD_RMETA))
 		result |= Modifiers.meta;
-	return result;
+	return cast(Modifiers) result;
+}
+
+struct KeyMod
+{
+	SDLKey key;
+	Modifiers mod = Modifiers.none;
 }
 
 static this()
