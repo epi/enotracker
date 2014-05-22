@@ -167,7 +167,26 @@ class SongEditor : SubWindow
 			++_position;
 			goto redrawWindow;
 		}
-		else if (key == SDLKey.SDLK_RETURN || key == SDLKey.SDLK_KP_ENTER)
+		else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.none)
+		      && _position > 0
+		      && !(_state.playing != State.Playing.nothing && _state.followSong))
+		{
+			if (_position > _centerLine)
+				_position -= _centerLine;
+			else
+				_position = 0;
+			goto redrawWindow;
+		}
+		else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.none)
+		      && _position < _state.tmc.song.length - 1
+		      && !(_state.playing != State.Playing.nothing && _state.followSong))
+		{
+			_position += _centerLine;
+			if (_position >= _state.tmc.song.length)
+				_position = cast(uint) (_state.tmc.song.length - 1);
+			goto redrawWindow;
+		}
+		else if (key == SDLKey.SDLK_RETURN || key == SDLKey.SDLK_KP_ENTER || key == SDLKey.SDLK_F11)
 		{
 			switch (mod)
 			{
@@ -191,7 +210,7 @@ class SongEditor : SubWindow
 			_player.playSong(_position + 1);
 			goto disableEditing;
 		}
-		else
+		else if (_state.editing)
 		{
 			int digit = getHexDigit(key);
 			if (digit >= 0
