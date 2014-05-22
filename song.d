@@ -200,66 +200,137 @@ class SongEditor : SubWindow
 				break;
 			}
 		}
-		else if (key == SDLKey.SDLK_F10)
+		else if (km == KeyMod(SDLKey.SDLK_F10, Modifiers.none)
+		      && _state.playing == State.Playing.song)
 		{
 			_player.playSong(_position == 0 ? 0 : _position - 1);
-			goto disableEditing;
+			return false;
 		}
-		else if (key == SDLKey.SDLK_F12)
+		else if (km == KeyMod(SDLKey.SDLK_F11, Modifiers.none)
+		      && _state.playing == State.Playing.song)
 		{
-			_player.playSong(_position + 1);
-			goto disableEditing;
+			_player.playSong(_position);
+			return false;
+		}
+		else if (km == KeyMod(SDLKey.SDLK_F12, Modifiers.none)
+		      && _state.playing == State.Playing.song)
+		{
+			_player.playSong(_position >= _state.tmc.song.length - 1 ? _position : _position + 1);
+			return false;
 		}
 		else if (_state.editing)
 		{
-			int digit = getHexDigit(key);
-			if (digit >= 0
-			 && (_cursorX == 0 || (_cursorX & 3) != 0 || digit < 8)
-			 && (_position < _state.tmc.song.length - 1 || _cursorX == 2 || _cursorX == 3))
+			if (km == KeyMod(SDLKey.SDLK_INSERT, Modifiers.none) && _state.tmc.song.length < Song.maxLength)
 			{
-				_state.history.execute(new class(this, _position, _cursorX, digit) Command
+				_state.history.execute(new class(this, _position) Command
 					{
-						this(SongEditor se, uint songPosition, uint cursorPosition, uint digit)
+						this(SongEditor se, uint songPosition)
 						{
 							_se = se;
 							_songPosition = songPosition;
-							_cursorPosition = cursorPosition;
-							_digit = digit;
 						}
 
 						SubWindow execute(TmcFile tmc)
 						{
-							doExecute(tmc);
-							_se._cursorX = (_se._cursorX + 1) % 32;
-							_se.notify();
+							tmc.song.insert(_songPosition);
+							_se._position = _songPosition;
 							return _se;
 						}
 
 						SubWindow undo(TmcFile tmc)
 						{
-							doExecute(tmc);
-							_se.notify();
+							tmc.song.erase(_songPosition);
+							_se._position = _songPosition;
 							return _se;
 						}
 
 					private:
-						void doExecute(TmcFile tmc)
-						{
-							uint oldDigit = getDigitUnderCursor(tmc, _songPosition, _cursorPosition);
-							setDigitUnderCursor(tmc, _songPosition, _cursorPosition, _digit);
-							_digit = oldDigit;
-							_se._position = _songPosition;
-							_se._cursorX = _cursorPosition;
-						}
-
 						SongEditor _se;
 						uint _songPosition;
-						uint _cursorPosition;
-						uint _digit;
 					});
-				drawLine(_centerLine, _position);
-				drawCursor();
-				return true;
+				goto redrawWindow;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DELETE, Modifiers.none) && _position < _state.tmc.song.length - 1)
+			{
+				_state.history.execute(new class(this, _position) Command
+					{
+						this(SongEditor se, uint songPosition)
+						{
+							_se = se;
+							_songPosition = songPosition;
+						}
+
+						SubWindow execute(TmcFile tmc)
+						{
+							_deletedLine = tmc.song[_songPosition];
+							tmc.song.erase(_songPosition);
+							_se._position = _songPosition;
+							return _se;
+						}
+
+						SubWindow undo(TmcFile tmc)
+						{
+							tmc.song.insert(_songPosition, _deletedLine);
+							_se._position = _songPosition;
+							return _se;
+						}
+
+					private:
+						SongEditor _se;
+						SongLine _deletedLine;
+						uint _songPosition;
+					});
+				goto redrawWindow;
+			}
+			else
+			{
+				int digit = getHexDigit(key);
+				if (digit >= 0
+				 && (_cursorX == 0 || (_cursorX & 3) != 0 || digit < 8)
+				 && (_position < _state.tmc.song.length - 1 || _cursorX == 2 || _cursorX == 3))
+				{
+					_state.history.execute(new class(this, _position, _cursorX, digit) Command
+						{
+							this(SongEditor se, uint songPosition, uint cursorPosition, uint digit)
+							{
+								_se = se;
+								_songPosition = songPosition;
+								_cursorPosition = cursorPosition;
+								_digit = digit;
+							}
+
+							SubWindow execute(TmcFile tmc)
+							{
+								doExecute(tmc);
+								_se._cursorX = (_se._cursorX + 1) % 32;
+								_se.notify();
+								return _se;
+							}
+
+							SubWindow undo(TmcFile tmc)
+							{
+								doExecute(tmc);
+								_se.notify();
+								return _se;
+							}
+
+						private:
+							void doExecute(TmcFile tmc)
+							{
+								uint oldDigit = getDigitUnderCursor(tmc, _songPosition, _cursorPosition);
+								setDigitUnderCursor(tmc, _songPosition, _cursorPosition, _digit);
+								_digit = oldDigit;
+								_se._position = _songPosition;
+								_se._cursorX = _cursorPosition;
+							}
+
+							SongEditor _se;
+							uint _songPosition;
+							uint _cursorPosition;
+							uint _digit;
+						});
+					goto redrawLine;
+				}
 			}
 		}
 		return false;
