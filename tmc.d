@@ -440,6 +440,11 @@ class TmcFile
 			return header[] ~ result;
 	}
 
+	Pattern getPatternBySongPositionAndTrack(uint songPosition, uint track)
+	{
+		return _patterns[_song[songPosition][track].pattn];
+	}
+
 	@property inout(Instrument)[] instruments() inout { return _instruments; }
 	@property inout(Pattern)[] patterns() inout { return _patterns; }
 	@property inout(Song) song() inout { return _song; }
