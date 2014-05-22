@@ -128,77 +128,72 @@ class SongEditor : SubWindow
 			4 + scrx, 3 + _centerLine, "%1X", v);
 	}
 
-	override bool key(SDLKey key, SDLMod mod)
+	override bool key(SDLKey key, SDLMod m)
 	{
-		if (key == SDLKey.SDLK_LEFT)
+		auto mod = m.packModifiers();
+		auto km = KeyMod(key, mod);
+
+		if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.none))
 		{
-			if (mod & (SDLMod.KMOD_RCTRL | SDLMod.KMOD_LCTRL))
-				_cursorX = (_cursorX - 1) & 0x1c;
-			else
-				_cursorX = (_cursorX - 1) & 0x1f;
-			drawLine(_centerLine, _position);
-			drawCursor();
-			return true;
+			_cursorX = (_cursorX - 1) & 0x1f;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_RIGHT)
+		else if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.ctrl))
 		{
-			if (mod & (SDLMod.KMOD_RCTRL | SDLMod.KMOD_LCTRL))
-				_cursorX = (_cursorX + 4) & 0x1c;
-			else
-				_cursorX = (_cursorX + 1) & 0x1f;
-			drawLine(_centerLine, _position);
-			drawCursor();
-			return true;
+			_cursorX = (_cursorX - 1) & 0x1c;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_UP)
+		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.none))
 		{
-			if (_position > 0)
-			{
-				--_position;
-				draw();
-				drawCursor();
-				notify();
-				return true;
-			}
+			_cursorX = (_cursorX + 1) & 0x1f;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_DOWN)
+		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.ctrl))
 		{
-			if (_position < _state.tmc.song.length - 1)
-			{
-				++_position;
-				draw();
-				drawCursor();
-				notify();
-				return true;
-			}
+			_cursorX = (_cursorX + 4) & 0x1c;
+			goto redrawLine;
 		}
-		else if (key == SDLKey.SDLK_RETURN)
+		else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none)
+		      && _position > 0
+		      && !(_state.playing != State.Playing.nothing && _state.followSong))
 		{
-			switch (mod.packModifiers())
+			--_position;
+			goto redrawWindow;
+		}
+		else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.none)
+		      && _position < _state.tmc.song.length - 1
+		      && !(_state.playing != State.Playing.nothing && _state.followSong))
+		{
+			++_position;
+			goto redrawWindow;
+		}
+		else if (key == SDLKey.SDLK_RETURN || key == SDLKey.SDLK_KP_ENTER)
+		{
+			switch (mod)
 			{
 			case Modifiers.none:
 				_player.playSong(_position);
-				break;
+				goto disableEditing;
 			case Modifiers.shift:
 				_player.playSong(0);
-				break;
+				goto disableEditing;
 			default:
 				break;
 			}
-			_state.editing = false;
-			return true;
 		}
 		else if (key == SDLKey.SDLK_F10)
 		{
 			_player.playSong(_position == 0 ? 0 : _position - 1);
+			goto disableEditing;
 		}
 		else if (key == SDLKey.SDLK_F12)
 		{
 			_player.playSong(_position + 1);
+			goto disableEditing;
 		}
-		else if (_state.editing)
+		else
 		{
-			int digit = getHexDigit(key, mod);
+			int digit = getHexDigit(key);
 			if (digit >= 0
 			 && (_cursorX == 0 || (_cursorX & 3) != 0 || digit < 8)
 			 && (_position < _state.tmc.song.length - 1 || _cursorX == 2 || _cursorX == 3))
@@ -249,6 +244,21 @@ class SongEditor : SubWindow
 			}
 		}
 		return false;
+
+redrawLine:
+		drawLine(_centerLine, _position);
+		drawCursor();
+		return true;
+
+redrawWindow:
+		notify();
+		draw();
+		drawCursor();
+		return true;
+
+disableEditing:
+		_state.editing = false;
+		return true;
 	}
 
 	@property void state(State s) { _state = s; }
