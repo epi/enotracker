@@ -68,7 +68,13 @@ class InfoEditor : SubWindow
 	@property void state(State s)
 	{
 		_state = s;
-		s.addEditingObserver("info", dummyBool => this.draw());
+		s.addObserver("info", ()
+			{
+				if (_state.editing != _state.oldEditing
+				 || _state.followSong != _state.oldFollowSong
+				 || _state.octave != _state.oldOctave)
+					draw();
+			});
 	}
 
 private:

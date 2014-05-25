@@ -38,7 +38,6 @@ class PatternEditor : SubWindow
 		enum w = 4 + 12 * 8 - 1;
 		super(s, x, y, w, h);
 		_centerLine = (h - 3) / 2;
-		_songLine = 0;
 		_maxLines = h - 2;
 	}
 
@@ -46,36 +45,36 @@ class PatternEditor : SubWindow
 	{
 		box(0, 0, width, height, active ? Color.ActiveBg : Color.InactiveBg);
 		box(0, 1 + _centerLine, width, 1, active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
+		auto pos = _state.patternPosition;
 		foreach (i; 0 .. _maxLines)
-		{
-			drawLine(i, i + _pattLine - _centerLine);
-		}
+			drawLine(i, i + pos - _centerLine);
 		if (active)
 			drawCursor();
 	}
 
-	void drawLine(uint i, int line)
+	void drawLine(uint i, int drawPos)
 	{
-		uint sl = _songLine;
-		if (line < 0)
+		uint sp = _state.songPosition;
+		uint pos = _state.patternPosition;
+		if (drawPos < 0)
 		{
-			if (sl == 0)
+			if (sp == 0)
 				return;
-			--sl;
-			line = line & 0x3f;
+			--sp;
+			drawPos = drawPos & 0x3f;
 			fgcolor = active ? Color.ActiveOuterFg : Color.InactiveOuterFg;
 			bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		}
-		else if (line > 0x3f)
+		else if (drawPos > 0x3f)
 		{
-			++sl;
-			if (sl >= _state.tmc.song.length)
+			++sp;
+			if (sp >= _state.tmc.song.length)
 				return;
-			line = line & 0x3f;
+			drawPos = drawPos & 0x3f;
 			fgcolor = active ? Color.ActiveOuterFg : Color.InactiveOuterFg;
 			bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		}
-		else if (line == _pattLine)
+		else if (drawPos == pos)
 		{
 			fgcolor = active ? Color.ActiveHighlightFg : Color.InactiveFg;
 			bgcolor = active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg;
@@ -85,23 +84,23 @@ class PatternEditor : SubWindow
 			fgcolor = active ? Color.ActiveFg : Color.InactiveFg;
 			bgcolor = active ? Color.ActiveBg : Color.InactiveBg;
 		}
-		textf(1, 1 + i, "%02X", line);
+		textf(1, 1 + i, "%02X", drawPos);
 		foreach (chn; 0 .. 8)
 		{
-			uint pattn = _state.tmc.song[sl][chn].pattn;
+			uint pattn = _state.tmc.song[sp][chn].pattn;
 			if (pattn > 0x7f)
 				continue;
-			textf(4 + chn * 12, 1 + i, "%s", _state.tmc.patterns[pattn][line]);
+			textf(4 + chn * 12, 1 + i, "%s", _state.tmc.patterns[pattn][drawPos]);
 		}
 	}
 
 	void drawCursor()
 	{
 		uint chn = _cursorX / 4;
-		uint pattn = _state.tmc.song[_songLine][chn].pattn;
+		uint pattn = _state.tmc.song[_state.songPosition][chn].pattn;
 		auto str = pattn > 0x7f
 			? "            "
-			: to!string(_state.tmc.patterns[pattn][_pattLine]);
+			: to!string(_state.tmc.patterns[pattn][_state.patternPosition]);
 
 		static struct Range { uint start; uint end; }
 		Range r;
@@ -161,42 +160,38 @@ class PatternEditor : SubWindow
 		      || _state.playing == State.Playing.nothing
 		      || _state.playing == State.Playing.note)
 		{
-			if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none) && _pattLine > 0)
+			auto pos = _state.patternPosition;
+			if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none) && pos > 0)
 			{
-				--_pattLine;
-				goto redrawWindow;
+				_state.patternPosition = pos - 1;
+				return true;
 			}
-			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.none) && _pattLine < 0x3f)
+			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.none) && pos < 0x3f)
 			{
-				++_pattLine;
-				goto redrawWindow;
+				_state.patternPosition = pos + 1;
+				return true;
 			}
-			else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.none) && _pattLine > 0)
+			else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.none) && pos > 0)
 			{
-				if (_pattLine > 8)
-					_pattLine -= 8;
-				else
-					_pattLine = 0;
-				goto redrawWindow;
+				_state.patternPosition = pos > 8 ? pos - 8 : 0;
+				return true;
 			}
-			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.none) && _pattLine < 0x3f)
+			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.none) && pos < 0x3f)
 			{
-				_pattLine += 8;
-				if (_pattLine > 0x3f)
-					_pattLine = 0x3f;
-				goto redrawWindow;
+				_state.patternPosition = pos > 0x37 ? 0x3f : pos + 8;
+				return true;
 			}
 			else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.ctrl))
 			{
 				_cursorX = 0;
-				_pattLine = 0;
-				goto redrawWindow;
+				_state.patternPosition = 0;
+				goto redrawLine;
 			}
 			else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.ctrl))
 			{
 				_cursorX = 0;
-				_pattLine = 0x3f;
-				goto redrawWindow;
+				_state.patternPosition = 0x3f;
+				goto redrawLine;
 			}
 		}
 
@@ -205,10 +200,10 @@ class PatternEditor : SubWindow
 			switch (mod)
 			{
 			case Modifiers.none:
-				_player.playPattern(_songLine, _pattLine);
+				_player.playPattern(_state.songPosition, _state.patternPosition);
 				goto disableEditing;
 			case Modifiers.shift:
-				_player.playPattern(_songLine, 0);
+				_player.playPattern(_state.songPosition, 0);
 				goto disableEditing;
 			default:
 				return false;
@@ -227,7 +222,7 @@ class PatternEditor : SubWindow
 					if (_state.editing)
 					{
 						_state.history.execute(this.new SetNoteCommand(
-							_songLine, _pattLine, _cursorX / 4, note, _state.instrument));
+							_state.songPosition, _state.patternPosition, _cursorX / 4, note, _state.instrument));
 						goto redrawWindow;
 					}
 				}
@@ -245,22 +240,6 @@ disableEditing:
 		return true;
 	}
 
-	void changeSongLine(uint currentSongLine)
-	{
-		_songLine = currentSongLine;
-		draw();
-	}
-
-	void update(uint sl, uint pl)
-	{
-		if (sl != _songLine || pl != _pattLine)
-		{
-			_songLine = sl;
-			_pattLine = pl;
-			draw();
-		}
-	}
-
 	void drawBars(T)(in T[] chnvol)
 	{
 		foreach (i, vol; chnvol)
@@ -270,7 +249,17 @@ disableEditing:
 		}
 	}
 
-	@property void state(State s) { _state = s; }
+	@property void state(State s)
+	{
+		_state = s;
+		s.addObserver("pattern", ()
+			{
+				if (_state.patternPosition != _state.oldPatternPosition
+				 || _state.songPosition != _state.oldSongPosition)
+					draw();
+			});
+	}
+
 	@property void player(Player p) { _player = p; }
 
 private:
@@ -291,22 +280,29 @@ private:
 
 		SubWindow execute(TmcFile tmc)
 		{
-			undo(tmc);
-			if (this.outer._pattLine < 0x3f)
-				++this.outer._pattLine;
+			doIt(tmc, 1);
 			return this.outer;
 		}
 
 		SubWindow undo(TmcFile tmc)
 		{
-			auto patt = tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
-			swap(patt[_patternPosition], _line);
-			this.outer._songLine = _songPosition;
-			this.outer._pattLine = _patternPosition;
+			doIt(tmc, 0);
 			return this.outer;
 		}
 
 	private:
+		void doIt(TmcFile tmc, uint incrementPatternPosition)
+		{
+			with (this.outer)
+			{
+				auto sp = _songPosition;
+				auto pos = _patternPosition;
+				auto patt = tmc.getPatternBySongPositionAndTrack(sp, _track);
+				swap(patt[pos], _line);
+				_state.setSongAndPatternPosition(sp, pos < 0x3f ? pos + incrementPatternPosition : pos);
+			}
+		}
+
 		Pattern.Line _line;
 		uint _songPosition;
 		uint _patternPosition;
@@ -327,8 +323,6 @@ private:
 		Bar = 0xe0c040,
 	}
 
-	uint _songLine;
-	uint _pattLine;
 	uint _maxLines;
 	uint _centerLine;
 	Player _player;

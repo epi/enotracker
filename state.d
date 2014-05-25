@@ -21,8 +21,8 @@
 
 module state;
 
-import std.ascii : toUpper;
 import std.array : replace;
+import std.ascii : toUpper;
 
 import command;
 import tmc;
@@ -32,17 +32,18 @@ private string generateObservableProperty(string type, string name)
 	return
 		q{
 			public @property $type$ $name$() const pure nothrow { return _$name$; }
+			public @property $type$ old$uname$() const pure nothrow { return _old$uname$; }
 			public @property void $name$($type$ v)
 			{
-				_$name$ = v;
-				foreach (n, obs; _$name$Observers) obs(v);
-			}
-			public void add$uname$Observer(string name, void delegate($type$) obs)
-			{
-				_$name$Observers[name] = obs;
+				if (_old$uname$ != v)
+				{
+					_$name$ = v;
+					notify();
+					_old$uname$ = v;
+				}
 			}
 			private $type$ _$name$;
-			private void delegate($type$)[string] _$name$Observers;
+			private $type$ _old$uname$;
 		}
 		.replace("$type$", type)
 		.replace("$name$", name)
@@ -70,13 +71,39 @@ class State
 	@property CommandHistory history() { return _history; }
 
 	uint instrument;
-	uint octave;
-	bool followSong;
 	Playing playing = Playing.nothing;
 
+	mixin(generateObservableProperty("uint", "octave"));
 	mixin(generateObservableProperty("bool", "editing"));
+	mixin(generateObservableProperty("bool", "followSong"));
+	mixin(generateObservableProperty("uint", "songPosition"));
+	mixin(generateObservableProperty("uint", "patternPosition"));
+
+	void setSongAndPatternPosition(uint sp, uint pp)
+	{
+		if (sp != _oldSongPosition || pp != _oldPatternPosition)
+		{
+			_songPosition = sp;
+			_patternPosition = pp;
+			notify();
+			_oldSongPosition = sp;
+			_oldPatternPosition = pp;
+		}
+	}
+
+	void addObserver(string name, void delegate() obs)
+	{
+		_observers[name] = obs;
+	}
 
 private:
+	void notify()
+	{
+		foreach (n, d; _observers)
+			d();
+	}
+
+	void delegate()[string] _observers;
 	TmcFile _tmc;
 	CommandHistory _history;
 }

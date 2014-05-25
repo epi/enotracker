@@ -37,7 +37,6 @@ class SongEditor : SubWindow
 		super(s, x, y, 52, h);
 		_maxLines = h - 4;
 		_centerLine = (h - 4) / 2;
-		_position = 0;
 	}
 
 	override void draw()
@@ -51,7 +50,7 @@ class SongEditor : SubWindow
 		foreach (chn; 0 .. 8)
 			textf(hcolor, 4 + chn * 6, 1, "Trac%s", chn + 1);
 		foreach (i; 0 .. height - 4)
-			drawLine(i, _position - _centerLine + i);
+			drawLine(i, _state.songPosition - _centerLine + i);
 		if (active)
 			drawCursor();
 	}
@@ -117,7 +116,7 @@ class SongEditor : SubWindow
 
 	ubyte getDigitUnderCursor()
 	{
-		return getDigitUnderCursor(_state.tmc, _position, _cursorX);
+		return getDigitUnderCursor(_state.tmc, _state.songPosition, _cursorX);
 	}
 
 	void drawCursor()
@@ -132,6 +131,7 @@ class SongEditor : SubWindow
 	{
 		auto mod = m.packModifiers();
 		auto km = KeyMod(key, mod);
+		auto pos = _state.songPosition;
 
 		if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.none))
 		{
@@ -154,44 +154,40 @@ class SongEditor : SubWindow
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none)
-		      && _position > 0
+		      && pos > 0
 		      && !(_state.playing != State.Playing.nothing && _state.followSong))
 		{
-			--_position;
-			goto redrawWindow;
+			_state.songPosition = pos - 1;
+			return true;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.none)
-		      && _position < _state.tmc.song.length - 1
+		      && pos + 1 < _state.tmc.song.length
 		      && !(_state.playing != State.Playing.nothing && _state.followSong))
 		{
-			++_position;
-			goto redrawWindow;
+			_state.songPosition = pos + 1;
+			return true;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.none)
-		      && _position > 0
+		      && pos > 0
 		      && !(_state.playing != State.Playing.nothing && _state.followSong))
 		{
-			if (_position > _centerLine)
-				_position -= _centerLine;
-			else
-				_position = 0;
-			goto redrawWindow;
+			_state.songPosition = pos > _centerLine ? pos - _centerLine : 0;
+			return true;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.none)
-		      && _position < _state.tmc.song.length - 1
+		      && pos + 1 < _state.tmc.song.length
 		      && !(_state.playing != State.Playing.nothing && _state.followSong))
 		{
-			_position += _centerLine;
-			if (_position >= _state.tmc.song.length)
-				_position = cast(uint) (_state.tmc.song.length - 1);
-			goto redrawWindow;
+			_state.songPosition = pos + 8 < _state.tmc.song.length
+				? pos + 8 : cast(uint) (_state.tmc.song.length - 1);
+			return true;
 		}
 		else if (key == SDLKey.SDLK_RETURN || key == SDLKey.SDLK_KP_ENTER || key == SDLKey.SDLK_F11)
 		{
 			switch (mod)
 			{
 			case Modifiers.none:
-				_player.playSong(_position);
+				_player.playSong(pos);
 				goto disableEditing;
 			case Modifiers.shift:
 				_player.playSong(0);
@@ -203,26 +199,26 @@ class SongEditor : SubWindow
 		else if (km == KeyMod(SDLKey.SDLK_F10, Modifiers.none)
 		      && _state.playing == State.Playing.song)
 		{
-			_player.playSong(_position == 0 ? 0 : _position - 1);
+			_player.playSong(pos == 0 ? 0 : pos - 1);
 			return false;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_F11, Modifiers.none)
 		      && _state.playing == State.Playing.song)
 		{
-			_player.playSong(_position);
+			_player.playSong(pos);
 			return false;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_F12, Modifiers.none)
 		      && _state.playing == State.Playing.song)
 		{
-			_player.playSong(_position >= _state.tmc.song.length - 1 ? _position : _position + 1);
+			_player.playSong(pos + 1 >= _state.tmc.song.length ? pos : pos + 1);
 			return false;
 		}
 		else if (_state.editing)
 		{
 			if (km == KeyMod(SDLKey.SDLK_INSERT, Modifiers.none) && _state.tmc.song.length < Song.maxLength)
 			{
-				_state.history.execute(new class(this, _position) Command
+				_state.history.execute(new class(this, pos) Command
 					{
 						this(SongEditor se, uint songPosition)
 						{
@@ -233,14 +229,14 @@ class SongEditor : SubWindow
 						SubWindow execute(TmcFile tmc)
 						{
 							tmc.song.insert(_songPosition);
-							_se._position = _songPosition;
+							_se._state.songPosition = _songPosition;
 							return _se;
 						}
 
 						SubWindow undo(TmcFile tmc)
 						{
 							tmc.song.erase(_songPosition);
-							_se._position = _songPosition;
+							_se._state.songPosition = _songPosition;
 							return _se;
 						}
 
@@ -248,11 +244,11 @@ class SongEditor : SubWindow
 						SongEditor _se;
 						uint _songPosition;
 					});
-				goto redrawWindow;
+				return true;
 			}
-			else if (km == KeyMod(SDLKey.SDLK_DELETE, Modifiers.none) && _position < _state.tmc.song.length - 1)
+			else if (km == KeyMod(SDLKey.SDLK_DELETE, Modifiers.none) && _state.songPosition < _state.tmc.song.length - 1)
 			{
-				_state.history.execute(new class(this, _position) Command
+				_state.history.execute(new class(this, _state.songPosition) Command
 					{
 						this(SongEditor se, uint songPosition)
 						{
@@ -264,14 +260,14 @@ class SongEditor : SubWindow
 						{
 							_deletedLine = tmc.song[_songPosition];
 							tmc.song.erase(_songPosition);
-							_se._position = _songPosition;
+							_se._state.songPosition = _songPosition;
 							return _se;
 						}
 
 						SubWindow undo(TmcFile tmc)
 						{
 							tmc.song.insert(_songPosition, _deletedLine);
-							_se._position = _songPosition;
+							_se._state.songPosition = _songPosition;
 							return _se;
 						}
 
@@ -280,16 +276,16 @@ class SongEditor : SubWindow
 						SongLine _deletedLine;
 						uint _songPosition;
 					});
-				goto redrawWindow;
+				return true;
 			}
 			else
 			{
 				int digit = getHexDigit(key);
 				if (digit >= 0
 				 && (_cursorX == 0 || (_cursorX & 3) != 0 || digit < 8)
-				 && (_position < _state.tmc.song.length - 1 || _cursorX == 2 || _cursorX == 3))
+				 && (_state.songPosition < _state.tmc.song.length - 1 || _cursorX == 2 || _cursorX == 3))
 				{
-					_state.history.execute(new class(this, _position, _cursorX, digit) Command
+					_state.history.execute(new class(this, _state.songPosition, _cursorX, digit) Command
 						{
 							this(SongEditor se, uint songPosition, uint cursorPosition, uint digit)
 							{
@@ -303,14 +299,12 @@ class SongEditor : SubWindow
 							{
 								doExecute(tmc);
 								_se._cursorX = (_se._cursorX + 1) % 32;
-								_se.notify();
 								return _se;
 							}
 
 							SubWindow undo(TmcFile tmc)
 							{
 								doExecute(tmc);
-								_se.notify();
 								return _se;
 							}
 
@@ -320,7 +314,7 @@ class SongEditor : SubWindow
 								uint oldDigit = getDigitUnderCursor(tmc, _songPosition, _cursorPosition);
 								setDigitUnderCursor(tmc, _songPosition, _cursorPosition, _digit);
 								_digit = oldDigit;
-								_se._position = _songPosition;
+								_se._state.songPosition = _songPosition;
 								_se._cursorX = _cursorPosition;
 							}
 
@@ -336,13 +330,7 @@ class SongEditor : SubWindow
 		return false;
 
 redrawLine:
-		drawLine(_centerLine, _position);
-		drawCursor();
-		return true;
-
-redrawWindow:
-		notify();
-		draw();
+		drawLine(_centerLine, _state.songPosition);
 		drawCursor();
 		return true;
 
@@ -351,32 +339,19 @@ disableEditing:
 		return true;
 	}
 
-	@property void state(State s) { _state = s; }
+	@property void state(State s)
+	{
+		_state = s;
+		s.addObserver("song", ()
+			{
+				if (_state.songPosition != _state.oldSongPosition)
+					draw();
+			});
+	}
+
 	@property void player(Player p) { _player = p; }
 
-	alias Observer = void delegate(uint currentSongLine);
-
-	void addObserver(Observer obs)
-	{
-		_observers ~= obs;
-	}
-
-	void update(uint pos)
-	{
-		if (pos != _position)
-		{
-			_position = pos;
-			draw();
-		}
-	}
-
 private:
-	void notify()
-	{
-		foreach (obs; _observers)
-			obs(_position);
-	}
-
 	enum Color
 	{
 		ActiveBg = 0x284028,
@@ -388,11 +363,9 @@ private:
 		InactiveHighlightBg = 0x283028,
 	}
 
-	Observer[] _observers;
 	uint _cursorX;
 	uint _maxLines;
 	uint _centerLine;
-	uint _position;
 	State _state;
 	Player _player;
 }

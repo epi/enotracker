@@ -59,7 +59,6 @@ class Enotracker
 		_songEditor.next = _patternEditor;
 		_patternEditor.next = _instrumentEditor;
 		_instrumentEditor.next = _songEditor;
-		_songEditor.addObserver(&_patternEditor.changeSongLine);
 		_activeWindow = _songEditor;
 
 		// create and attach player
@@ -132,8 +131,7 @@ class Enotracker
 					if (_state.followSong
 					 && (_state.playing == State.Playing.pattern || _state.playing == State.Playing.song))
 					{
-						_songEditor.update(fevent.songPosition);
-						_patternEditor.update(fevent.songPosition, fevent.patternPosition);
+						_state.setSongAndPatternPosition(fevent.songPosition, fevent.patternPosition);
 					}
 					_patternEditor.drawBars(fevent.channelVolumes);
 					_screen.flip();
@@ -161,15 +159,13 @@ private:
 		if (key == SDLKey.SDLK_F7)
 		{
 			_state.followSong = !_state.followSong;
-			_infoEditor.draw();
 			return true;
 		}
 		else if (key == SDLKey.SDLK_F8)
 		{
 			if (_state.octave > 0)
 			{
-				--_state.octave;
-				_infoEditor.draw();
+				_state.octave = _state.octave - 1;
 				return true;
 			}
 		}
@@ -177,8 +173,7 @@ private:
 		{
 			if (_state.octave < 4)
 			{
-				++_state.octave;
-				_infoEditor.draw();
+				_state.octave = _state.octave + 1;
 				return true;
 			}
 		}
