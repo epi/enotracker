@@ -226,46 +226,8 @@ class PatternEditor : SubWindow
 					_player.playNote(note, _state.instrument, _cursorX / 4);
 					if (_state.editing)
 					{
-						_state.history.execute(new class(this, _songLine, _pattLine, _cursorX / 4, note, _state.instrument) Command
-							{
-								this(PatternEditor pe, uint songPosition, uint patternPosition, uint track, uint note, uint instrument)
-								{
-									_pe = pe;
-									_songPosition = songPosition;
-									_patternPosition = patternPosition;
-									_track = track;
-									auto patt = _pe._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track); 
-									_line = patt[patternPosition];
-									_line.note = cast(ubyte) note;
-									_line.instr = cast(ubyte) instrument;
-									_line.vol = 0x00;
-									_line.setVol = true;
-								}
-
-								SubWindow execute(TmcFile tmc)
-								{
-									undo(tmc);
-									if (_pe._pattLine < 0x3f)
-										++_pe._pattLine;
-									return _pe;
-								}
-
-								SubWindow undo(TmcFile tmc)
-								{
-									auto patt = tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
-									swap(patt[_patternPosition], _line);
-									_pe._songLine = _songPosition;
-									_pe._pattLine = _patternPosition;
-									return _pe;
-								}
-
-							private:
-								PatternEditor _pe;
-								Pattern.Line _line;
-								uint _songPosition;
-								uint _patternPosition;
-								uint _track;
-							});
+						_state.history.execute(this.new SetNoteCommand(
+							_songLine, _pattLine, _cursorX / 4, note, _state.instrument));
 						goto redrawWindow;
 					}
 				}
@@ -312,6 +274,45 @@ disableEditing:
 	@property void player(Player p) { _player = p; }
 
 private:
+	class SetNoteCommand : Command
+	{
+		this(uint songPosition, uint patternPosition, uint track, uint note, uint instrument)
+		{
+			_songPosition = songPosition;
+			_patternPosition = patternPosition;
+			_track = track;
+			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
+			_line = patt[patternPosition];
+			_line.note = cast(ubyte) note;
+			_line.instr = cast(ubyte) instrument;
+			_line.vol = 0x00;
+			_line.setVol = true;
+		}
+
+		SubWindow execute(TmcFile tmc)
+		{
+			undo(tmc);
+			if (this.outer._pattLine < 0x3f)
+				++this.outer._pattLine;
+			return this.outer;
+		}
+
+		SubWindow undo(TmcFile tmc)
+		{
+			auto patt = tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
+			swap(patt[_patternPosition], _line);
+			this.outer._songLine = _songPosition;
+			this.outer._pattLine = _patternPosition;
+			return this.outer;
+		}
+
+	private:
+		Pattern.Line _line;
+		uint _songPosition;
+		uint _patternPosition;
+		uint _track;
+	}
+
 	enum Color
 	{
 		ActiveBg = 0x282840,
