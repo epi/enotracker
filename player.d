@@ -95,7 +95,7 @@ class Player
 		{
 			_asap.load(0x2800, _tempTmc.save(0x2800, false));
 			_asap.MusicAddr = 0x2800;
-			_asap.Fastplay = 312 / _state.tmc.fastplay;
+			_asap.Fastplay = 312 / _tempTmc.fastplay;
 			_asap.InitPlay();
 			_asap.PlaySongAt(0);
 			_asapState = ASAPState.playedSong;
