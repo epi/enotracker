@@ -137,6 +137,31 @@ protected:
 		}
 	}
 
+	void frame(int x, int y, int w, int h, uint col)
+	{
+		_surface.lock();
+		scope(exit) _surface.unlock();
+		int leftX = (_xo + x) * 8 - 2;
+		int rightX = (_xo + x + w) * 8 + 1;
+		if (y >= _topLimit && y < _bottomLimit)
+		{
+			foreach (xx; leftX .. rightX)
+				_surface.putPixel(xx, (_yo + y) * 8 - 2, col);
+		}
+		if (y + h >= _topLimit && y + h < _bottomLimit)
+		{
+			foreach (xx; leftX .. rightX + 1)
+				_surface.putPixel(xx, (_yo + y + h) * 8 + 1, col);
+		}
+		foreach (yy;
+			(_yo + (y >= _topLimit ? y : _topLimit)) * 8 - 2 ..
+			(_yo + (y + h >= _bottomLimit ? _bottomLimit : y + h)) * 8 + 1)
+		{
+			_surface.putPixel(leftX, yy, col);
+			_surface.putPixel(rightX, yy, col);
+		}
+	}
+
 	uint fgcolor;
 	uint bgcolor;
 
@@ -144,6 +169,9 @@ protected:
 	Surface _surface;
 	uint _xo;
 	uint _yo;
+
+	int _topLimit;
+	int _bottomLimit;
 
 private:
 	bool _active;
