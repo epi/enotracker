@@ -68,8 +68,11 @@ class CommandHistory
 	SubWindow redo()
 	{
 		assert(canRedo);
-		scope(exit) ++_currentPosition;
-		_state.modified = this.modified;
+		scope(exit)
+		{
+			++_currentPosition;
+			_state.modified = this.modified;
+		}
 		return _commands[_currentPosition].execute(_state.tmc);
 	}
 
@@ -81,6 +84,7 @@ class CommandHistory
 	void setSavePoint()
 	{
 		_savedPosition = _currentPosition;
+		_state.modified = this.modified;
 	}
 
 private:
