@@ -23,6 +23,7 @@ module pattern;
 
 import std.algorithm;
 import std.conv;
+import std.math;
 
 import command;
 import keys;
@@ -35,10 +36,12 @@ class PatternEditor : SubWindow
 {
 	this(Surface s, uint x, uint y, uint h)
 	{
-		enum w = 4 + 12 * 8 - 1;
+		enum w = 4 + 12 * 8;
 		super(s, x, y, w, h);
 		_centerLine = (h - 3) / 2;
 		_maxLines = h - 2;
+		_topLimit = 1;
+		_bottomLimit = h - 1;
 	}
 
 	override void draw()
@@ -105,66 +108,34 @@ class PatternEditor : SubWindow
 		}
 	}
 
-	void drawCursor()
-	{
-		uint chn = _cursorX / 4;
-		uint pattn = _state.tmc.song[_state.songPosition][chn].pattn;
-		auto str = pattn > 0x7f
-			? "            "
-			: to!string(_state.tmc.patterns[pattn][_state.patternPosition]);
-
-		static struct Range { uint start; uint end; }
-		Range r;
-		final switch (_cursorX % 4)
-		{
-			case 0:
-				r = Range(0, 6); break;
-			case 1:
-				r = Range(8, 9); break;
-			case 2:
-				r = Range(9, 10); break;
-			case 3:
-				r = Range(10, 11); break;
-		}
-		textf(
-			active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg,
-			active ? Color.ActiveHighlightFg : Color.InactiveFg,
-			4 + chn * 12 + r.start, 1 + _centerLine, str[r.start .. r.end]);
-	}
-
 	override bool key(SDLKey key, SDLMod m)
 	{
 		auto mod = m.packModifiers();
 		auto km = KeyMod(key, mod);
+		// bool selectionEmpty = _selection == Selection.init;
 
 		if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.none))
 		{
+			_selection = Selection.init;
 			_cursorX = (_cursorX - 1) & 0x1f;
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.ctrl))
 		{
+			_selection = Selection.init;
 			_cursorX = (_cursorX - 1) & 0x1c;
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.none))
 		{
+			_selection = Selection.init;
 			_cursorX = (_cursorX + 1) & 0x1f;
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.ctrl))
 		{
+			_selection = Selection.init;
 			_cursorX = (_cursorX + 4) & 0x1c;
-			goto redrawLine;
-		}
-		else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.none))
-		{
-			_cursorX = 0;
-			goto redrawLine;
-		}
-		else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.none))
-		{
-			_cursorX = 0x1c;
 			goto redrawLine;
 		}
 		else if (!_state.followSong
@@ -174,35 +145,75 @@ class PatternEditor : SubWindow
 			auto pos = _state.patternPosition;
 			if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none) && pos > 0)
 			{
+				_selection = Selection.init;
 				_state.patternPosition = pos - 1;
+				return true;
+			}
+			if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.shift) && pos > 0)
+			{
+				select(pos, pos > 0 ? pos - 1 : pos);
 				return true;
 			}
 			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.none) && pos < 0x3f)
 			{
+				_selection = Selection.init;
 				_state.patternPosition = pos + 1;
+				return true;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.shift) && pos <= 0x3f)
+			{
+				select(pos, pos < 0x3f ? pos + 1 : pos);
 				return true;
 			}
 			else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.none) && pos > 0)
 			{
+				_selection = Selection.init;
 				_state.patternPosition = pos > 8 ? pos - 8 : 0;
+				return true;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.shift) && pos > 0)
+			{
+				select(pos, pos > 8 ? pos - 8 : 0);
 				return true;
 			}
 			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.none) && pos < 0x3f)
 			{
+				_selection = Selection.init;
 				_state.patternPosition = pos > 0x37 ? 0x3f : pos + 8;
 				return true;
 			}
-			else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.ctrl))
+			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.shift) && pos < 0x3f)
 			{
-				_cursorX = 0;
-				_state.patternPosition = 0;
-				goto redrawLine;
+				select(pos, pos > 0x37 ? 0x3f : pos + 8);
+				return true;
 			}
-			else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.ctrl))
+			else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.none))
 			{
-				_cursorX = 0;
+				_selection = Selection.init;
+				_state.patternPosition = 0;
+				return true;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.shift))
+			{
+				select(pos, 0);
+				return true;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.none))
+			{
+				_selection = Selection.init;
 				_state.patternPosition = 0x3f;
-				goto redrawLine;
+				return true;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.shift))
+			{
+				select(pos, 0x3f);
+				return true;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_a, Modifiers.ctrl))
+			{
+				Selection s = { track : _cursorX / 4, startPosition : 0, endPosition : 0x3f};
+				_selection = s;
+				goto redrawWindow;
 			}
 		}
 
@@ -240,13 +251,16 @@ class PatternEditor : SubWindow
 				return false;
 			}
 		}
+
 		return false;
 redrawLine:
+		// if (!selectionEmpty && _selection == Selection.init) goto redrawWindow;
 redrawWindow:
 		draw();
 		return true;
 
 disableEditing:
+		_selection = Selection.init;
 		_state.editing = false;
 		return true;
 	}
@@ -320,6 +334,62 @@ private:
 		uint _track;
 	}
 
+	static struct Selection
+	{
+		uint track = uint.max;
+		uint startPosition = uint.max;
+		uint endPosition = uint.max;
+	}
+
+	void drawSelection()
+	{
+		if (_selection == Selection.init)
+			return;
+		uint top = min(_selection.startPosition, _selection.endPosition);
+		uint height = abs(cast(int) (_selection.endPosition - _selection.startPosition)) + 1;
+		frame(4 + _selection.track * 12, _centerLine - (_state.patternPosition - top) + 1,
+			11, height, Color.ActiveFg);
+	}
+
+	void select(uint pos, uint newpos)
+	{
+		if (_selection == Selection.init)
+		{
+			_selection.track = _cursorX / 4;
+			_selection.startPosition = pos;
+		}
+		_selection.endPosition = newpos;
+		_state.patternPosition = newpos;
+	}
+
+	void drawCursor()
+	{
+		drawSelection();
+		uint chn = _cursorX / 4;
+		uint pattn = _state.tmc.song[_state.songPosition][chn].pattn;
+		auto str = pattn > 0x7f
+			? "            "
+			: to!string(_state.tmc.patterns[pattn][_state.patternPosition]);
+
+		static struct Range { uint start; uint end; }
+		Range r;
+		final switch (_cursorX % 4)
+		{
+			case 0:
+				r = Range(0, 6); break;
+			case 1:
+				r = Range(8, 9); break;
+			case 2:
+				r = Range(9, 10); break;
+			case 3:
+				r = Range(10, 11); break;
+		}
+		textf(
+			active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg,
+			active ? Color.ActiveHighlightFg : Color.InactiveFg,
+			4 + chn * 12 + r.start, 1 + _centerLine, str[r.start .. r.end]);
+	}
+
 	enum Color
 	{
 		ActiveBg = 0x282840,
@@ -332,11 +402,13 @@ private:
 		ActiveOuterFg = 0xa0a0b0,
 		InactiveOuterFg = 0x606060,
 		Bar = 0xe0c040,
+		Selection = 0xd0ffe0,
 	}
 
 	uint _maxLines;
 	uint _centerLine;
-	Player _player;
-	State _state;
 	uint _cursorX;
+	State _state;
+	Selection _selection;
+	Player _player;
 }
