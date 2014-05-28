@@ -215,6 +215,11 @@ class PatternEditor : SubWindow
 				_selection = s;
 				goto redrawWindow;
 			}
+			else if (km == KeyMod(SDLKey.SDLK_c, Modifiers.ctrl))
+			{
+				auto pattern = _state.tmc.getPatternBySongPositionAndTrack(_state.songPosition, _cursorX / 4);
+				_clipboard = pattern[][_selection.startPosition .. _selection.endPosition + 1].dup;
+			}
 		}
 
 		if (key == SDLKey.SDLK_RETURN)
@@ -249,6 +254,22 @@ class PatternEditor : SubWindow
 					}
 				}
 				return false;
+			}
+		}
+
+		if (_state.editing)
+		{
+			if (km == KeyMod(SDLKey.SDLK_v, Modifiers.ctrl))
+			{
+				_state.history.execute(this.new PasteLinesCommand(
+					_state.songPosition, _state.patternPosition, _cursorX / 4, _clipboard));
+				goto redrawWindow;
+			}
+			else if (km == KeyMod(SDLKey.SDLK_BACKSPACE, Modifiers.none))
+			{
+				_state.history.execute(this.new EraseNoteCommand(
+					_state.songPosition, _state.patternPosition, _cursorX / 4));
+				goto redrawWindow;
 			}
 		}
 
@@ -288,19 +309,26 @@ disableEditing:
 	@property void player(Player p) { _player = p; }
 
 private:
-	class SetNoteCommand : Command
+	abstract class PatternCommand : Command
 	{
-		this(uint songPosition, uint patternPosition, uint track, uint note, uint instrument)
+		this(uint songPosition, uint patternPosition, uint track)
 		{
 			_songPosition = songPosition;
 			_patternPosition = patternPosition;
 			_track = track;
-			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
-			_line = patt[patternPosition];
-			_line.note = cast(ubyte) note;
-			_line.instr = cast(ubyte) instrument;
-			_line.vol = 0x00;
-			_line.setVol = true;
+		}
+
+	protected:
+		uint _songPosition;
+		uint _patternPosition;
+		uint _track;
+	}
+
+	abstract class SwapLineCommand : PatternCommand
+	{
+		this(uint songPosition, uint patternPosition, uint track)
+		{
+			super(songPosition, patternPosition, track);
 		}
 
 		SubWindow execute(TmcFile tmc)
@@ -315,7 +343,7 @@ private:
 			return this.outer;
 		}
 
-	private:
+	protected:
 		void doIt(TmcFile tmc, uint incrementPatternPosition)
 		{
 			with (this.outer)
@@ -329,9 +357,70 @@ private:
 		}
 
 		Pattern.Line _line;
-		uint _songPosition;
-		uint _patternPosition;
-		uint _track;
+	}
+
+	class SetNoteCommand : SwapLineCommand
+	{
+		this(uint songPosition, uint patternPosition, uint track, uint note, uint instrument)
+		{
+			super(songPosition, patternPosition, track);
+			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
+			_line = patt[patternPosition];
+			_line.note = cast(ubyte) note;
+			_line.instr = cast(ubyte) instrument;
+			_line.vol = 0x00;
+			_line.setVol = true;
+		}
+	}
+
+	class EraseNoteCommand : SwapLineCommand
+	{
+		this(uint songPosition, uint patternPosition, uint track)
+		{
+			super(songPosition, patternPosition, track);
+			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
+			_line = patt[patternPosition];
+			_line.note = 0;
+			_line.instr = 0;
+			_line.setVol = false;
+		}
+	}
+
+	class PasteLinesCommand : PatternCommand
+	{
+		this(uint songPosition, uint patternPosition, uint track, Pattern.Line[] pastedLines)
+		{
+			super(songPosition, patternPosition, track);
+			_pastedLines = pastedLines.dup;
+		}
+
+		SubWindow execute(TmcFile tmc)
+		{
+			return doIt(tmc, false);
+		}
+
+		SubWindow undo(TmcFile tmc)
+		{
+			return doIt(tmc, true);
+		}
+
+	private:
+		SubWindow doIt(TmcFile tmc, bool back)
+		{
+			with (this.outer)
+			{
+				auto sp = _songPosition;
+				auto pos = _patternPosition;
+				auto patt = tmc.getPatternBySongPositionAndTrack(sp, _track);
+				uint endpos = min(pos + _pastedLines.length, 0x40);
+				foreach (p; pos .. endpos)
+					swap(_pastedLines[p - pos], patt[p]);
+				_state.setSongAndPatternPosition(sp, back ? pos : (endpos < 0x3f ? endpos : 0x3f));
+				return this.outer;
+			}
+		}
+
+		Pattern.Line[] _pastedLines;
 	}
 
 	static struct Selection
@@ -411,4 +500,5 @@ private:
 	State _state;
 	Selection _selection;
 	Player _player;
+	Pattern.Line[] _clipboard;
 }

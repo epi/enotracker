@@ -84,7 +84,7 @@ class Pattern
 		return 0x40;
 	}
 
-	@property inout(Line[0x40]) lines() inout { return _lines; }
+	@property inout(Line[]) opSlice() inout { return _lines[]; }
 
 	ref inout(Line) opIndex(size_t i) inout { return _lines[i]; }
 
