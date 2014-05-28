@@ -218,7 +218,7 @@ class PatternEditor : SubWindow
 			else if (km == KeyMod(SDLKey.SDLK_c, Modifiers.ctrl))
 			{
 				auto pattern = _state.tmc.getPatternBySongPositionAndTrack(_state.songPosition, _cursorX / 4);
-				_clipboard = pattern[][_selection.startPosition .. _selection.endPosition + 1].dup;
+				_clipboard = pattern[][_selection.begin .. _selection.end].dup;
 			}
 		}
 
@@ -250,7 +250,7 @@ class PatternEditor : SubWindow
 					{
 						_state.history.execute(this.new SetNoteCommand(
 							_state.songPosition, _state.patternPosition, _cursorX / 4, note, _state.instrument));
-						goto redrawWindow;
+						return true;
 					}
 				}
 				return false;
@@ -261,14 +261,56 @@ class PatternEditor : SubWindow
 		{
 			if (km == KeyMod(SDLKey.SDLK_v, Modifiers.ctrl))
 			{
-				_state.history.execute(this.new PasteLinesCommand(
-					_state.songPosition, _state.patternPosition, _cursorX / 4, _clipboard));
-				goto redrawWindow;
+				_state.history.execute(this.new SwapLinesCommand(
+					_state.songPosition, _state.patternPosition, _cursorX / 4, _clipboard.dup, true));
+				return true;
 			}
 			else if (km == KeyMod(SDLKey.SDLK_BACKSPACE, Modifiers.none))
 			{
-				_state.history.execute(this.new EraseNoteCommand(
-					_state.songPosition, _state.patternPosition, _cursorX / 4));
+				if (_selection == Selection.init)
+				{
+					_state.history.execute(this.new EraseNoteCommand(
+						_state.songPosition, _state.patternPosition, _cursorX / 4));
+					return true;
+				}
+				else
+				{
+					auto cmd = this.new SwapLinesCommand(
+						_state.songPosition, _selection.begin, _cursorX / 4,
+						new Pattern.Line[_selection.end - _selection.begin], false);
+					_selection = Selection.init;
+					_state.history.execute(cmd);
+					goto redrawWindow;
+				}
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DELETE, Modifiers.none))
+			{
+				auto patt = _state.tmc.getPatternBySongPositionAndTrack(_state.songPosition, _cursorX / 4);
+				if (_selection == Selection.init)
+				{
+					_state.history.execute(this.new SwapLinesCommand(
+						_state.songPosition, _state.patternPosition, _cursorX / 4,
+						patt[][_state.patternPosition + 1 .. $] ~ Pattern.Line(), false));
+					goto redrawWindow;
+				}
+				else
+				{
+					auto cmd = this.new SwapLinesCommand(
+						_state.songPosition, _selection.begin, _cursorX / 4,
+						patt[][_selection.end .. $] ~ new Pattern.Line[_selection.length], false);
+					_selection = Selection.init;
+					_state.history.execute(cmd);
+					goto redrawWindow;
+				}
+			}
+			else if (km == KeyMod(SDLKey.SDLK_INSERT, Modifiers.none))
+			{
+				auto patt = _state.tmc.getPatternBySongPositionAndTrack(_state.songPosition, _cursorX / 4);
+				auto cmd = this.new SwapLinesCommand(
+					_state.songPosition, _state.patternPosition, _cursorX / 4,
+					Pattern.Line() ~ patt[][_state.patternPosition .. $ - 1], false);
+				_selection = Selection.init;
+				_state.history.execute(cmd);
 				goto redrawWindow;
 			}
 		}
@@ -324,103 +366,72 @@ private:
 		uint _track;
 	}
 
-	abstract class SwapLineCommand : PatternCommand
+	class SwapLinesCommand : PatternCommand
 	{
-		this(uint songPosition, uint patternPosition, uint track)
+		this(uint songPosition, uint patternPosition, uint track, Pattern.Line[] lines, bool cursorPastSwappedLines)
 		{
 			super(songPosition, patternPosition, track);
+			_lines = lines.dup;
+			_cursorPastSwappedLines = cursorPastSwappedLines;
 		}
 
 		SubWindow execute(TmcFile tmc)
 		{
-			doIt(tmc, 1);
+			doIt(tmc, false);
 			return this.outer;
 		}
 
 		SubWindow undo(TmcFile tmc)
 		{
-			doIt(tmc, 0);
+			doIt(tmc, true);
 			return this.outer;
 		}
 
 	protected:
-		void doIt(TmcFile tmc, uint incrementPatternPosition)
+		void doIt(TmcFile tmc, bool back)
 		{
 			with (this.outer)
 			{
 				auto sp = _songPosition;
 				auto pos = _patternPosition;
 				auto patt = tmc.getPatternBySongPositionAndTrack(sp, _track);
-				swap(patt[pos], _line);
-				_state.setSongAndPatternPosition(sp, pos < 0x3f ? pos + incrementPatternPosition : pos);
+				uint endpos = min(pos + _lines.length, 0x40);
+				foreach (p; pos .. endpos)
+					swap(_lines[p - pos], patt[p]);
+				_state.setSongAndPatternPosition(sp,
+					back || !_cursorPastSwappedLines ? pos : (endpos < 0x3f ? endpos : 0x3f));
 			}
 		}
 
-		Pattern.Line _line;
+		Pattern.Line[] _lines;
+		bool _cursorPastSwappedLines;
 	}
 
-	class SetNoteCommand : SwapLineCommand
+	class SetNoteCommand : SwapLinesCommand
 	{
 		this(uint songPosition, uint patternPosition, uint track, uint note, uint instrument)
 		{
-			super(songPosition, patternPosition, track);
 			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
-			_line = patt[patternPosition];
-			_line.note = cast(ubyte) note;
-			_line.instr = cast(ubyte) instrument;
-			_line.vol = 0x00;
-			_line.setVol = true;
+			auto line = patt[patternPosition];
+			line.note = cast(ubyte) note;
+			line.instr = cast(ubyte) instrument;
+			line.vol = 0x00;
+			line.setVol = true;
+			super(songPosition, patternPosition, track, [ line ], true);
 		}
 	}
 
-	class EraseNoteCommand : SwapLineCommand
+	class EraseNoteCommand : SwapLinesCommand
 	{
 		this(uint songPosition, uint patternPosition, uint track)
 		{
-			super(songPosition, patternPosition, track);
 			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
-			_line = patt[patternPosition];
-			_line.note = 0;
-			_line.instr = 0;
-			_line.setVol = false;
+			auto line = patt[patternPosition];
+			line.note = 0;
+			line.instr = 0;
+			line.setVol = false;
+			super(songPosition, patternPosition, track, [ line ], true);
 		}
-	}
-
-	class PasteLinesCommand : PatternCommand
-	{
-		this(uint songPosition, uint patternPosition, uint track, Pattern.Line[] pastedLines)
-		{
-			super(songPosition, patternPosition, track);
-			_pastedLines = pastedLines.dup;
-		}
-
-		SubWindow execute(TmcFile tmc)
-		{
-			return doIt(tmc, false);
-		}
-
-		SubWindow undo(TmcFile tmc)
-		{
-			return doIt(tmc, true);
-		}
-
-	private:
-		SubWindow doIt(TmcFile tmc, bool back)
-		{
-			with (this.outer)
-			{
-				auto sp = _songPosition;
-				auto pos = _patternPosition;
-				auto patt = tmc.getPatternBySongPositionAndTrack(sp, _track);
-				uint endpos = min(pos + _pastedLines.length, 0x40);
-				foreach (p; pos .. endpos)
-					swap(_pastedLines[p - pos], patt[p]);
-				_state.setSongAndPatternPosition(sp, back ? pos : (endpos < 0x3f ? endpos : 0x3f));
-				return this.outer;
-			}
-		}
-
-		Pattern.Line[] _pastedLines;
 	}
 
 	static struct Selection
@@ -428,6 +439,18 @@ private:
 		uint track = uint.max;
 		uint startPosition = uint.max;
 		uint endPosition = uint.max;
+		@property uint begin() const pure nothrow
+		{
+			return min(startPosition, endPosition);
+		}
+		@property uint end() const pure nothrow
+		{
+			return max(startPosition, endPosition) + 1;
+		}
+		@property uint length() const pure nothrow
+		{
+			return end - begin;
+		}
 	}
 
 	void drawSelection()
