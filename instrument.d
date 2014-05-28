@@ -73,7 +73,7 @@ class InstrumentEditor : SubWindow
 	{
 	}
 
-	override bool key(SDLKey key, SDLMod mod)
+	override bool key(SDLKey key, SDLMod mod, wchar unicode)
 	{
 		if (mod & (SDLMod.KMOD_RSHIFT | SDLMod.KMOD_LSHIFT))
 		{

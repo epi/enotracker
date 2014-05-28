@@ -33,7 +33,7 @@ class InfoEditor : SubWindow
 		enum h = 4;
 		super(s, x, y, w, h);
 	}
-	
+
 	override void draw()
 	{
 		fgcolor = active ? Color.ActiveFg : Color.InactiveFg;
@@ -55,16 +55,11 @@ class InfoEditor : SubWindow
 		if (active)
 			drawCursor();
 	}
-	
+
 	void drawCursor()
 	{
 	}
-	
-	override bool key(SDLKey key, SDLMod mod)
-	{
-		return false;
-	}
-	
+
 	@property void state(State s)
 	{
 		_state = s;

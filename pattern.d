@@ -108,7 +108,7 @@ class PatternEditor : SubWindow
 		}
 	}
 
-	override bool key(SDLKey key, SDLMod m)
+	override bool key(SDLKey key, SDLMod m, wchar unicode)
 	{
 		auto mod = m.packModifiers();
 		auto km = KeyMod(key, mod);

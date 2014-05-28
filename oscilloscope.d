@@ -43,11 +43,6 @@ class Oscilloscope : SubWindow
 		update();
 	}
 
-	override bool key(SDLKey key, SDLMod mod)
-	{
-		return false;
-	}
-
 	void update(in short[] left = null, in short[] right = null)
 	{
 		plot(1, 1, left);

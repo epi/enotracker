@@ -52,7 +52,7 @@ class SubWindow
 
 	@property void next(SubWindow sw) { _next = sw; }
 
-	abstract bool key(SDLKey key, SDLMod mod);
+	bool key(SDLKey key, SDLMod mod, wchar unicode) { return false; }
 
 	@property uint width() const pure nothrow { return _width; }
 	@property uint height() const pure nothrow { return _height; }

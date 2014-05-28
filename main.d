@@ -19,11 +19,12 @@
 	along with enotracker.  If not, see $(LINK http://www.gnu.org/licenses/).
 */
 
-import std.file : read;
+import std.file : read, write;
 import std.path : baseName;
 import std.string : toStringz;
 
 import asap;
+import filename;
 import info;
 import instrument;
 import keys;
@@ -41,7 +42,7 @@ class Enotracker
 	private enum ScreenSize
 	{
 		width = 816,
-		height = 600,
+		height = 616,
 	}
 
 	this()
@@ -133,7 +134,7 @@ class Enotracker
 				case SDL_EventType.SDL_QUIT:
 					return;
 				case SDL_EventType.SDL_KEYDOWN:
-					if (handleKeyDown(event.key.keysym.sym, event.key.keysym.mod))
+					if (handleKeyDown(event.key.keysym.sym, event.key.keysym.mod, event.key.keysym.unicode))
 						_screen.flip();
 					break;
 				case SDL_EventType.SDL_USEREVENT:
@@ -165,7 +166,7 @@ class Enotracker
 	}
 
 private:
-	bool handleKeyDown(SDLKey key, SDLMod mod)
+	bool handleKeyDown(SDLKey key, SDLMod mod, wchar unicode)
 	{
 		if (key == SDLKey.SDLK_F7)
 		{
@@ -237,7 +238,36 @@ private:
 			_patternEditor.draw();
 			return true;
 		}
-		return _activeWindow.key(key, mod);
+		else if (key == SDLKey.SDLK_s && mod.packModifiers() == Modifiers.ctrl)
+		{
+			SubWindow previousWindow = _activeWindow;
+			auto fne = new FileNameEditor(_screen, 1, 73, _state.fileName,
+				(string newName, bool accepted)
+				{
+					try
+					{
+						if (accepted)
+						{
+							std.file.write(newName, _state.tmc.save(0x2800, true));
+							_state.fileName = newName;
+							_state.history.setSavePoint();
+						}
+					}
+					finally
+					{
+						_activeWindow.active = false;
+						_activeWindow = _activeWindow.next;
+						_activeWindow.active = true;
+						_screen.flip();
+					}
+				});
+			fne.next = previousWindow;
+			_activeWindow = fne;
+			previousWindow.active = false;
+			_activeWindow.active = true;
+			return true;
+		}
+		return _activeWindow.key(key, mod, unicode);
 	}
 
 	Screen _screen;

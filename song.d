@@ -127,7 +127,7 @@ class SongEditor : SubWindow
 			4 + scrx, 3 + _centerLine, "%1X", v);
 	}
 
-	override bool key(SDLKey key, SDLMod m)
+	override bool key(SDLKey key, SDLMod m, wchar unicode)
 	{
 		auto mod = m.packModifiers();
 		auto km = KeyMod(key, mod);

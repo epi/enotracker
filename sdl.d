@@ -211,6 +211,9 @@ public enum SDL_EventType
 	SDL_NUMEVENTS = 32
 }
 
+extern(C)
+int SDL_EnableUNICODE(int enable);
+
 public:
 
 shared static this()
@@ -219,6 +222,7 @@ shared static this()
 		throw new SDLException("Failed to initialize SDL");
 	else
 		debug (SDL) writeln("SDL_Init OK");
+	SDL_EnableUNICODE(1);
 }
 
 shared static ~this()
