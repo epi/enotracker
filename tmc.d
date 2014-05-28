@@ -76,6 +76,14 @@ class Pattern
 		}
 	}
 
+	@property uint actualLength() const pure nothrow
+	{
+		foreach (i; 0 .. 0x40)
+			if (_lines[i].setCmd && _lines[i].cmd == 0)
+				return i + 1;
+		return 0x40;
+	}
+
 	@property inout(Line[0x40]) lines() inout { return _lines; }
 
 	ref inout(Line) opIndex(size_t i) inout { return _lines[i]; }

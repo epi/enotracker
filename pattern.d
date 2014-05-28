@@ -46,6 +46,17 @@ class PatternEditor : SubWindow
 		box(0, 0, width, height, active ? Color.ActiveBg : Color.InactiveBg);
 		box(0, 1 + _centerLine, width, 1, active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
 		auto pos = _state.patternPosition;
+		if (_state.playing == State.Playing.song || _state.playing == State.Playing.pattern)
+		{
+			foreach (chn; 0 .. 8)
+			{
+				uint pattn = _state.tmc.song[_state.songPosition][chn].pattn;
+				if (pattn > 0x7f)
+					continue;
+				if (pos >= _state.tmc.patterns[pattn].actualLength)
+					pos = _state.tmc.patterns[pattn].actualLength - 1;
+			}
+		}
 		foreach (i; 0 .. _maxLines)
 			drawLine(i, i + pos - _centerLine);
 		if (active)
