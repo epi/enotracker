@@ -40,7 +40,7 @@ class Enotracker
 {
 	private enum ScreenSize
 	{
-		width = 808,
+		width = 816,
 		height = 600,
 	}
 
@@ -53,7 +53,7 @@ class Enotracker
 		_songEditor = new SongEditor(_screen, 1, 3, 20);
 		_patternEditor = new PatternEditor(_screen, 1, 24, 48);
 		_instrumentEditor = new InstrumentEditor(_screen, 54, 8);
-		_oscilloscope = new Oscilloscope(_screen, 84, 8, 14, 6);
+		_oscilloscope = new Oscilloscope(_screen, 84, 8, 15, 6);
 		_infoEditor = new InfoEditor(_screen, 54, 3);
 
 		_songEditor.next = _patternEditor;

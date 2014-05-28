@@ -29,7 +29,7 @@ class InfoEditor : SubWindow
 {
 	this(Surface s, uint x, uint y)
 	{
-		enum w = 46;
+		enum w = 47;
 		enum h = 4;
 		super(s, x, y, w, h);
 	}
