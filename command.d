@@ -21,6 +21,7 @@
 
 module command;
 
+import state;
 import subwindow;
 import tmc;
 
@@ -32,12 +33,18 @@ interface Command
 
 class CommandHistory
 {
+	this(State s)
+	{
+		_state = s;
+	}
+
 	void execute(Command c)
 	{
 		_commands = _commands[0 .. _currentPosition];
 		_commands ~= c;
 		++_currentPosition;
-		c.execute(tmc);
+		_state.modified = this.modified;
+		c.execute(_state.tmc);
 	}
 
 	@property bool canUndo() const pure nothrow
@@ -49,7 +56,8 @@ class CommandHistory
 	{
 		assert(canUndo);
 		--_currentPosition;
-		return _commands[_currentPosition].undo(tmc);
+		_state.modified = this.modified;
+		return _commands[_currentPosition].undo(_state.tmc);
 	}
 
 	@property bool canRedo() const pure nothrow
@@ -61,22 +69,22 @@ class CommandHistory
 	{
 		assert(canRedo);
 		scope(exit) ++_currentPosition;
-		return _commands[_currentPosition].execute(tmc);
+		_state.modified = this.modified;
+		return _commands[_currentPosition].execute(_state.tmc);
 	}
 
-	@property bool fileChanged() const pure nothrow
+	@property bool modified() const pure nothrow
 	{
-		return _currentPosition == _savedPosition;
+		return _currentPosition != _savedPosition;
 	}
 
-	void save()
+	void setSavePoint()
 	{
 		_savedPosition = _currentPosition;
 	}
 
-	TmcFile tmc;
-
 private:
+	State _state;
 	Command[] _commands;
 	size_t _savedPosition = 0;
 	size_t _currentPosition = 0;

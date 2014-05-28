@@ -63,8 +63,7 @@ class State
 	this()
 	{
 		_tmc = new TmcFile;
-		_history = new CommandHistory;
-		_history.tmc = tmc;
+		_history = new CommandHistory(this);
 	}
 
 	@property TmcFile tmc() { return _tmc; }
@@ -78,6 +77,8 @@ class State
 	mixin(generateObservableProperty("bool", "followSong"));
 	mixin(generateObservableProperty("uint", "songPosition"));
 	mixin(generateObservableProperty("uint", "patternPosition"));
+	mixin(generateObservableProperty("string", "fileName"));
+	mixin(generateObservableProperty("bool", "modified"));
 
 	void setSongAndPatternPosition(uint sp, uint pp)
 	{

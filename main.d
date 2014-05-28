@@ -76,6 +76,17 @@ class Enotracker
 		_instrumentEditor.state = _state;
 		_infoEditor.state = _state;
 		_player.state = _state;
+		_state.addObserver("main", ()
+			{
+				if (_state.fileName != _state.oldFileName
+				 || _state.modified != _state.oldModified)
+				{
+					auto title = (_state.fileName.baseName()
+						~ (_state.modified ? " *" : "")
+						~ " - enotracker").toStringz();
+					SDL_WM_SetCaption(title, title);
+				}
+			});
 
 		// draw UI
 		_screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
@@ -86,7 +97,7 @@ class Enotracker
 		_oscilloscope.active = false;
 		_screen.flip();
 
-		SDL_WM_SetCaption("enotracker", "enotracker");
+		_state.fileName = "";
 	}
 
 	~this()
@@ -105,8 +116,8 @@ class Enotracker
 		_infoEditor.active = false;
 		_oscilloscope.active = false;
 		_screen.flip();
-		auto title = (filename.baseName() ~ " - enotracker").toStringz();
-		SDL_WM_SetCaption(title, title);
+		_state.fileName = filename;
+		_state.history.setSavePoint();
 	}
 
 	void processEvents()
