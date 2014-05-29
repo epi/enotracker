@@ -149,6 +149,11 @@ class InstrumentEditor : SubWindow
 			draw();
 			return true;
 		}
+		else if (km == KeyMod(SDLKey.SDLK_c, Modifiers.ctrl))
+		{
+			_clipboard = _state.tmc.instruments[_state.instrument];
+			return false;
+		}
 		else if (_state.editing)
 		{
 			if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.ctrl))
@@ -182,6 +187,13 @@ class InstrumentEditor : SubWindow
 			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.shift))
 			{
 				return liftEnvelope(Envelope.secondary, -1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_v, Modifiers.ctrl))
+			{
+				_state.history.execute(this.new SwapEverythingCommand(
+					_state.instrument, _clipboard));
+				draw();
+				return true;
 			}
 			else if (mod == Modifiers.none)
 			{
@@ -342,6 +354,32 @@ private:
 		ubyte[21] _volumes;
 	}
 
+	class SwapEverythingCommand : Command
+	{
+		this(uint instrument, Instrument swapped)
+		{
+			_instrument = instrument;
+			_swapped = swapped;
+		}
+
+		SubWindow execute(TmcFile tmc)
+		{
+			swap(_swapped, tmc.instruments[_instrument]);
+			this.outer._state.instrument = _instrument;
+			this.outer._changed = true;
+			return this.outer;
+		}
+
+		SubWindow undo(TmcFile tmc)
+		{
+			return execute(tmc);
+		}
+
+	private:
+		uint _instrument;
+		Instrument _swapped;
+	}
+
 	bool liftEnvelope(Envelope e, int diff)
 	{
 		auto i = _state.instrument;
@@ -479,4 +517,5 @@ private:
 	uint _cursorX;
 	uint _cursorY = 5;
 	bool _changed;
+	Instrument _clipboard;
 }
