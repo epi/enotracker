@@ -129,37 +129,47 @@ class Enotracker
 			SDL_Event event;
 			while (SDL_WaitEvent(&event))
 			{
-				switch (event.type)
+				try
 				{
-				case SDL_EventType.SDL_QUIT:
-					return;
-				case SDL_EventType.SDL_KEYDOWN:
-					if (handleKeyDown(event.key.keysym.sym, event.key.keysym.mod, event.key.keysym.unicode))
-						_screen.flip();
-					break;
-				case SDL_EventType.SDL_USEREVENT:
-				{
-					auto fevent = cast(const(ASAPFrameEvent)*) &event;
-					if (_state.followSong
-					 && (_state.playing == State.Playing.pattern || _state.playing == State.Playing.song))
+					switch (event.type)
 					{
-						_state.setSongAndPatternPosition(fevent.songPosition, fevent.patternPosition);
+					case SDL_EventType.SDL_QUIT:
+						if (!_state.modified)
+							return;
+						break;
+					case SDL_EventType.SDL_KEYDOWN:
+						if (handleKeyDown(event.key.keysym.sym, event.key.keysym.mod, event.key.keysym.unicode))
+							_screen.flip();
+						break;
+					case SDL_EventType.SDL_USEREVENT:
+					{
+						auto fevent = cast(const(ASAPFrameEvent)*) &event;
+						if (_state.followSong
+						 && (_state.playing == State.Playing.pattern || _state.playing == State.Playing.song))
+						{
+							_state.setSongAndPatternPosition(fevent.songPosition, fevent.patternPosition);
+						}
+						_patternEditor.drawBars(fevent.channelVolumes);
+						_screen.flip();
+						break;
 					}
-					_patternEditor.drawBars(fevent.channelVolumes);
-					_screen.flip();
-					break;
+					case SDL_EventType.SDL_USEREVENT + 1:
+					{
+						auto bevent = cast(const(ASAPBufferEvent)*) &event;
+						_oscilloscope.update(
+							cast(const(short)[]) bevent.left,
+							cast(const(short)[]) bevent.right);
+						_screen.flip();
+						break;
+					}
+					default:
+						break;
+					}
 				}
-				case SDL_EventType.SDL_USEREVENT + 1:
+				catch (Throwable t)
 				{
-					auto bevent = cast(const(ASAPBufferEvent)*) &event;
-					_oscilloscope.update(
-						cast(const(short)[]) bevent.left,
-						cast(const(short)[]) bevent.right);
-					_screen.flip();
-					break;
-				}
-				default:
-					break;
+					import std.stdio;
+					stderr.writeln(t.msg);
 				}
 			}
 		}
