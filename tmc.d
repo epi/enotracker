@@ -215,6 +215,12 @@ private:
 	SongLine[] _lines;
 }
 
+enum Envelope
+{
+	primary,
+	secondary
+}
+
 align(1) struct InstrumentTick
 {
 	ubyte[3] data;
@@ -223,11 +229,40 @@ align(1) struct InstrumentTick
 		return all!"a == 0"(data[]);
 	}
 
+	@property ubyte getVolume(Envelope e)
+	{
+		final switch (e)
+		{
+		case Envelope.primary:
+			return lvolume;
+		case Envelope.secondary:
+			return rvolume;
+		}
+	}
+
+	@property void setVolume(Envelope e, uint v)
+	{
+		final switch (e)
+		{
+		case Envelope.primary:
+			lvolume = v;
+			break;
+		case Envelope.secondary:
+			rvolume = v;
+			break;
+		}
+	}
+
 	@property ubyte lvolume() const pure nothrow { return data[0] & 0xf; }
+	@property void lvolume(uint v) nothrow { data[0] = (data[0] & 0xf0) | (v & 0xf); }
 	@property ubyte rvolume() const pure nothrow { return data[1] & 0xf; }
+	@property void rvolume(uint v) nothrow { data[1] = (data[1] & 0xf0) | (v & 0xf); }
 	@property ubyte distortion() const pure nothrow { return data[0] >> 4; }
+	@property void distortion(uint v) nothrow { data[0] = (data[0] & 0x0f) | ((v & 0xf) << 4); }
 	@property ubyte effect() const pure nothrow { return data[1] >> 4; }
+	@property void effect(uint v) nothrow { data[1] = (data[1] & 0x0f) | ((v & 0xf) << 4); }
 	@property ubyte parameter() const pure nothrow { return data[2]; }
+	@property void parameter(uint v) nothrow{ data[2] = v & 0xff; }
 }
 
 align(1) struct Instrument
@@ -235,6 +270,36 @@ align(1) struct Instrument
 	InstrumentTick[21] ticks;
 	align(1) ubyte[8] arp;
 	align(1) ubyte[9] params;
+
+	@property void getEnvelope(Envelope which, ref ubyte[21] v) const nothrow
+	{
+		final switch (which)
+		{
+		case Envelope.primary:
+			foreach (t; 0 .. 21)
+				v[t] = ticks[t].lvolume;
+			break;
+		case Envelope.secondary:
+			foreach (t; 0 .. 21)
+				v[t] = ticks[t].rvolume;
+			break;
+		}
+	}
+
+	@property void setEnvelope(Envelope which, ref const(ubyte[21]) v) nothrow
+	{
+		final switch (which)
+		{
+		case Envelope.primary:
+			foreach (t; 0 .. 21)
+				ticks[t].lvolume = v[t];
+			break;
+		case Envelope.secondary:
+			foreach (t; 0 .. 21)
+				ticks[t].rvolume = v[t];
+			break;
+		}
+	}
 
 	@property bool empty() const pure nothrow
 	{
