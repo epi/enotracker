@@ -248,7 +248,7 @@ class SongEditor : SubWindow
 						SongEditor _se;
 						uint _songPosition;
 					});
-				return true;
+				goto redrawWindow;
 			}
 			else if (km == KeyMod(SDLKey.SDLK_DELETE, Modifiers.none) && _state.songPosition < _state.tmc.song.length - 1)
 			{
@@ -280,7 +280,7 @@ class SongEditor : SubWindow
 						SongLine _deletedLine;
 						uint _songPosition;
 					});
-				return true;
+				goto redrawWindow;
 			}
 			else
 			{
@@ -332,6 +332,10 @@ class SongEditor : SubWindow
 			}
 		}
 		return false;
+
+redrawWindow:
+		draw();
+		return true;
 
 redrawLine:
 		drawLine(_centerLine, _state.songPosition);
