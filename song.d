@@ -136,21 +136,25 @@ class SongEditor : SubWindow
 		if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.none))
 		{
 			_cursorX = (_cursorX - 1) & 0x1f;
+			_state.track = _cursorX / 4;
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_LEFT, Modifiers.ctrl))
 		{
 			_cursorX = (_cursorX - 1) & 0x1c;
+			_state.track = _cursorX / 4;
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.none))
 		{
 			_cursorX = (_cursorX + 1) & 0x1f;
+			_state.track = _cursorX / 4;
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_RIGHT, Modifiers.ctrl))
 		{
 			_cursorX = (_cursorX + 4) & 0x1c;
+			_state.track = _cursorX / 4;
 			goto redrawLine;
 		}
 		else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none)

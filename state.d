@@ -70,6 +70,7 @@ class State
 	@property CommandHistory history() { return _history; }
 
 	uint instrument;
+	uint track;
 	Playing playing = Playing.nothing;
 
 	mixin(generateObservableProperty("uint", "octave"));

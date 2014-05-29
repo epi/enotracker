@@ -82,7 +82,7 @@ class InstrumentEditor : SubWindow
 				note += 12 * _state.octave;
 				if (note > 63)
 					note = 63;
-				_player.playNote(note, _state.instrument, 0, _changed);
+				_player.playNote(note, _state.instrument, _state.track, _changed);
 				_changed = false;
 				return false;
 			}
