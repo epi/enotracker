@@ -106,7 +106,7 @@ class Player
 		_state.playing = State.Playing.pattern;
 	}
 
-	void playNote(uint note, uint instr, uint chan)
+	void playNote(uint note, uint instr, uint chan, bool forceInit = false)
 	{
 		if (_state.playing == State.Playing.song || _state.playing == State.Playing.pattern)
 		{
@@ -120,7 +120,7 @@ class Player
 		{
 			executeInAudioThread(()
 			{
-				if (_asapState != ASAPState.initialized)
+				if (_asapState != ASAPState.initialized || forceInit)
 				{
 					_asap.load(0x2800, _state.tmc.save(0x2800, false));
 					_asap.MusicAddr = 0x2800;

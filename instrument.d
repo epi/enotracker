@@ -24,6 +24,7 @@ module instrument;
 import std.algorithm;
 import std.conv;
 
+import command;
 import keys;
 import player;
 import state;
@@ -69,13 +70,11 @@ class InstrumentEditor : SubWindow
 			drawCursor();
 	}
 
-	void drawCursor()
+	override bool key(SDLKey key, SDLMod m, wchar unicode)
 	{
-	}
-
-	override bool key(SDLKey key, SDLMod mod, wchar unicode)
-	{
-		if (mod & (SDLMod.KMOD_RSHIFT | SDLMod.KMOD_LSHIFT))
+		auto mod = m.packModifiers();
+		auto km = KeyMod(key, mod);
+		if (mod == Modifiers.shift)
 		{
 			uint note = noteKeys.get(key, 0);
 			if (note)
@@ -83,26 +82,120 @@ class InstrumentEditor : SubWindow
 				note += 12 * _state.octave;
 				if (note > 63)
 					note = 63;
-				_player.playNote(note, _state.instrument, 0);
+				_player.playNote(note, _state.instrument, 0, _changed);
+				_changed = false;
+				return false;
 			}
 		}
-		if (key == SDLKey.SDLK_PAGEUP)
+		if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.none))
 		{
 			_state.instrument = (_state.instrument - 1) & 0x3f;
 			draw();
 			return true;
 		}
-		else if (key == SDLKey.SDLK_PAGEDOWN)
+		else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.none))
 		{
 			_state.instrument = (_state.instrument + 1) & 0x3f;
 			draw();
 			return true;
 		}
+		else if (key == SDLKey.SDLK_LEFT) // deliberately ignore modifiers for easier navigation
+		{
+			if (_cursorX > 0)
+			{
+				--_cursorX;
+				draw();
+				return true;
+			}
+		}
+		else if (key == SDLKey.SDLK_RIGHT) // deliberately ignore modifiers for easier navigation
+		{
+			if (_cursorX < 24)
+			{
+				++_cursorX;
+				draw();
+				return true;
+			}
+		}
+		else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.none))
+		{
+			if (_cursorY > 0)
+			{
+				--_cursorY;
+				draw();
+				return true;
+			}
+		}
+		else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.none))
+		{
+			if (_cursorY < 8)
+			{
+				++_cursorY;
+				if (_cursorX < 21 && _cursorY < 6)
+					_cursorY = 6;
+				draw();
+				return true;
+			}
+		}
+		else if (km == KeyMod(SDLKey.SDLK_HOME, Modifiers.none))
+		{
+			_cursorX = 0;
+			draw();
+			return true;
+		}
+		else if (km == KeyMod(SDLKey.SDLK_END, Modifiers.none))
+		{
+			_cursorX = 20;
+			draw();
+			return true;
+		}
+		else if (_state.editing)
+		{
+			if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.ctrl))
+			{
+				return changeVolume(Envelope.primary, 1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.ctrl))
+			{
+				return changeVolume(Envelope.primary, -1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.shift))
+			{
+				return changeVolume(Envelope.secondary, 1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.shift))
+			{
+				return changeVolume(Envelope.secondary, -1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.ctrl | Modifiers.alt))
+			{
+				return liftEnvelope(Envelope.primary, 1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.ctrl | Modifiers.alt))
+			{
+				return liftEnvelope(Envelope.primary, -1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.shift | Modifiers.alt))
+			{
+				return liftEnvelope(Envelope.secondary, 1);
+			}
+			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.shift | Modifiers.alt))
+			{
+				return liftEnvelope(Envelope.secondary, -1);
+			}
+			else if (mod == Modifiers.none)
+			{
+				int d = getHexDigit(key);
+				if (0 <= d && d <= 15)
+				{
+					_state.history.execute(this.new SetDigitCommand(
+						_state.instrument, _cursorX, _cursorY, d));
+					draw();
+					return true;
+				}
+			}
+		}
 		return false;
-	}
-
-	void update(uint sl, uint pl)
-	{
 	}
 
 	@property void player(Player p) { _player = p; }
@@ -123,6 +216,267 @@ private:
 		Bar = 0xd0b030,
 	}
 
+	class ChangeVolumeCommand : Command
+	{
+		this(uint instrument, Envelope envelope, uint index, uint volume)
+		{
+			_instrument = instrument;
+			_envelope = envelope;
+			_index = index;
+			_volume = volume;
+		}
+
+		SubWindow execute(TmcFile tmc)
+		{
+			Instrument *instr = &tmc.instruments[_instrument];
+			uint temp = instr.ticks[_index].getVolume(_envelope);
+			swap(temp, _volume);
+			instr.ticks[_index].setVolume(_envelope, temp);
+			this.outer._cursorX = _index;
+			this.outer._changed = true;
+			return this.outer;
+		}
+
+		SubWindow undo(TmcFile tmc)
+		{
+			return execute(tmc);
+		}
+
+	private:
+		uint _instrument;
+		Envelope _envelope;
+		uint _index;
+		uint _volume;
+	}
+
+	class SetDigitCommand : Command
+	{
+		this(uint instrument, uint x, uint y, uint digit)
+		{
+			_instrument = instrument;
+			_x = x;
+			_y = y;
+			_digit = digit;
+		}
+
+		SubWindow execute(TmcFile tmc)
+		{
+			doIt(tmc);
+			if (_x <= 19 || _x == 21 || _x == 23)
+			{
+				this.outer._cursorX = _x + 1;
+				this.outer._cursorY = _y;
+			}
+			else if (_x == 22 || _x == 24)
+			{
+				this.outer._cursorX = _x - 1;
+				this.outer._cursorY = _y < 8 ? _y + 1 : _y;
+			}
+			else
+			{
+				this.outer._cursorX = _x;
+				this.outer._cursorY = _y;
+			}
+			return this.outer;
+		}
+
+		SubWindow undo(TmcFile tmc)
+		{
+			doIt(tmc);
+			this.outer._cursorX = _x;
+			this.outer._cursorY = _y;
+			return this.outer;
+		}
+
+	private:
+		void doIt(TmcFile tmc)
+		{
+			Instrument *instr = &tmc.instruments[_instrument];
+			uint temp = getDigitUnderCursor(tmc, _instrument, _x, _y);
+			swap(temp, _digit);
+			setDigitUnderCursor(tmc, _instrument, _x, _y, temp);
+			this.outer._state.instrument = _instrument;
+			this.outer._changed = true;
+		}
+
+		uint _instrument;
+		uint _x;
+		uint _y;
+		uint _digit;
+	}
+
+	class SwapEnvelopeCommand : Command
+	{
+		this(uint instrument, Envelope envelope, ubyte[21] volumes)
+		{
+			_instrument = instrument;
+			_envelope = envelope;
+			_volumes = volumes;
+		}
+
+		SubWindow execute(TmcFile tmc)
+		{
+			return doIt(tmc);
+		}
+
+		SubWindow undo(TmcFile tmc)
+		{
+			return doIt(tmc);
+		}
+
+	private:
+		SubWindow doIt(TmcFile tmc)
+		{
+			Instrument *instr = &tmc.instruments[_instrument];
+			ubyte[21] temp;
+			instr.getEnvelope(_envelope, temp);
+			swap(temp, _volumes);
+			instr.setEnvelope(_envelope, temp);
+			this.outer._state.instrument = _instrument;
+			this.outer._changed = true;
+			return this.outer;
+		}
+
+		uint _instrument;
+		Envelope _envelope;
+		ubyte[21] _volumes;
+	}
+
+	bool liftEnvelope(Envelope e, int diff)
+	{
+		auto i = _state.instrument;
+		Instrument *instr = &_state.tmc.instruments[i];
+		ubyte[21] volumes;
+		instr.getEnvelope(e, volumes);
+		bool change = false;
+		foreach (ref v; volumes)
+		{
+			int vol = v + diff;
+			if (0 <= vol && vol <= 15)
+			{
+				v = cast(ubyte) vol;
+				change = true;
+			}
+		}
+		if (change)
+		{
+			_state.history.execute(this.new SwapEnvelopeCommand(
+				_state.instrument, e, volumes));
+			draw();
+			return true;
+		}
+		return false;
+	}
+
+	bool changeVolume(Envelope e, int diff)
+	{
+		auto i = _state.instrument;
+		Instrument *instr = &_state.tmc.instruments[i];
+		int vol = instr.ticks[_cursorX].getVolume(e) + diff;
+		if (!(0 <= vol && vol <= 15))
+			return false;
+		_state.history.execute(this.new ChangeVolumeCommand(
+			_state.instrument, e, _cursorX, vol));
+		draw();
+		return true;
+	}
+
+	static uint getDigitUnderCursor(TmcFile tmc, uint instrument, uint x, uint y)
+	{
+		Instrument* instr = &tmc.instruments[instrument];
+		if (x < 21)
+		{
+			switch (y)
+			{
+			case 8:
+				return instr.ticks[x].parameter & 0xf;
+			case 7:
+				return instr.ticks[x].parameter >> 4;
+			case 6:
+				return instr.ticks[x].effect;
+			default:
+				return instr.ticks[x].distortion;
+			}
+		}
+		else if (x == 21)
+			return instr.arp[y > 0 ? y - 1 : 0] >> 4;
+		else if (x == 22)
+			return instr.arp[y > 0 ? y - 1 : 0] & 0xf;
+		else if (x == 23)
+			return instr.params[y] >> 4;
+		else if (x == 24)
+			return instr.params[y] & 0xf;
+		assert(0);
+	}
+
+	static void setDigitUnderCursor(TmcFile tmc, uint instrument, uint x, uint y, uint digit)
+	{
+		Instrument* instr = &tmc.instruments[instrument];
+		if (x < 21)
+		{
+			switch (y)
+			{
+			case 8:
+				instr.ticks[x].parameter = (instr.ticks[x].parameter & 0xf0) | (digit & 0xf);
+				break;
+			case 7:
+				instr.ticks[x].parameter = (instr.ticks[x].parameter & 0x0f) | ((digit & 0xf) << 4);
+				break;
+			case 6:
+				instr.ticks[x].effect = digit;
+				break;
+			default:
+				instr.ticks[x].distortion = digit;
+				break;
+			}
+		}
+		else if (x == 21)
+		{
+			if (y > 0)
+				--y;
+			instr.arp[y] = (instr.arp[y] & 0x0f) | ((digit & 0xf) << 4);
+		}
+		else if (x == 22)
+		{
+			if (y > 0)
+				--y;
+			instr.arp[y] = (instr.arp[y] & 0xf0) | (digit & 0xf);
+		}
+		else if (x == 23)
+			instr.params[y] = (instr.params[y] & 0x0f) | ((digit & 0xf) << 4);
+		else if (x == 24)
+			instr.params[y] = (instr.params[y] & 0xf0) | (digit & 0xf);
+	}
+
+	@property uint screenX() pure nothrow const
+	{
+		if (_cursorX < 21)
+			return _cursorX + 1;
+		if (_cursorX < 23)
+			return _cursorX + 2;
+		return _cursorX + 3;
+	}
+
+	@property uint screenY() pure nothrow const
+	{
+		if (_cursorX < 21)
+			return _cursorY >= 5 ? _cursorY + 5 : 10;
+		if (_cursorX < 23)
+			return _cursorY >= 1 ? _cursorY + 5 : 6;
+		return _cursorY + 5;
+	}
+
+	void drawCursor()
+	{
+		uint d = getDigitUnderCursor(_state.tmc, _state.instrument, _cursorX, _cursorY);
+		uint sx = screenX;
+		uint sy = screenY;
+		textf(bgcolor, fgcolor, sx, sy, "%X", d);
+	}
+
 	Player _player;
 	State _state;
+	uint _cursorX;
+	uint _cursorY = 5;
+	bool _changed;
 }
