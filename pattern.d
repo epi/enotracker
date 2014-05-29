@@ -237,23 +237,47 @@ class PatternEditor : SubWindow
 			}
 		}
 
-		if (mod == Modifiers.none && _cursorX % 4 == 0)
+		if (mod == Modifiers.none)
 		{
-			uint note = noteKeys.get(key, 0);
-			if (note >= 1)
+			uint col = _cursorX % 4;
+			uint track = _cursorX / 4;
+			if (col == 0)
 			{
-				note += _state.octave * 12;
-				if (note <= 0x3f)
+				uint note = noteKeys.get(key, 0);
+				if (note >= 1)
 				{
-					_player.playNote(note, _state.instrument, _cursorX / 4);
-					if (_state.editing)
+					note += _state.octave * 12;
+					if (note <= 0x3f)
 					{
-						_state.history.execute(this.new SetNoteCommand(
-							_state.songPosition, _state.patternPosition, _cursorX / 4, note, _state.instrument));
-						return true;
+						_player.playNote(note, _state.instrument, track);
+						if (_state.editing)
+						{
+							_state.history.execute(this.new SetNoteCommand(
+								_state.songPosition, _state.patternPosition, track, note, _state.instrument));
+							return true;
+						}
 					}
+					return false;
 				}
-				return false;
+			}
+			else if (_state.editing)
+			{
+				int d = getHexDigit(key);
+				if (0 <= d && d <= 15)
+				{
+					if (col == 3)
+					{
+						_state.history.execute(this.new SetCommandCommand(
+							_state.songPosition, _state.patternPosition, track, d));
+					}
+					else
+					{
+						_state.history.execute(this.new SetVolumeCommand(
+							_state.songPosition, _state.patternPosition, track,
+								col == 1 ? Envelope.primary : Envelope.secondary, d));
+					}
+					goto redrawWindow;
+				}
 			}
 		}
 
@@ -270,8 +294,8 @@ class PatternEditor : SubWindow
 				if (_selection == Selection.init)
 				{
 					_state.history.execute(this.new EraseNoteCommand(
-						_state.songPosition, _state.patternPosition, _cursorX / 4));
-					return true;
+						_state.songPosition, _state.patternPosition, _cursorX / 4, _cursorX % 4 == 3));
+					goto redrawWindow;
 				}
 				else
 				{
@@ -411,7 +435,7 @@ private:
 	{
 		this(uint songPosition, uint patternPosition, uint track, uint note, uint instrument)
 		{
-			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
+			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(songPosition, track);
 			auto line = patt[patternPosition];
 			line.note = cast(ubyte) note;
 			line.instr = cast(ubyte) instrument;
@@ -423,14 +447,53 @@ private:
 
 	class EraseNoteCommand : SwapLinesCommand
 	{
-		this(uint songPosition, uint patternPosition, uint track)
+		this(uint songPosition, uint patternPosition, uint track, bool eraseCommand)
 		{
-			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(_songPosition, _track);
+			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(songPosition, track);
 			auto line = patt[patternPosition];
-			line.note = 0;
-			line.instr = 0;
-			line.setVol = false;
+			if (eraseCommand)
+			{
+				line.setCmd = false;
+			}
+			else
+			{
+				line.note = 0;
+				line.instr = 0;
+				line.setVol = false;
+			}
 			super(songPosition, patternPosition, track, [ line ], true);
+		}
+	}
+
+	class SetCommandCommand : SwapLinesCommand
+	{
+		this(uint songPosition, uint patternPosition, uint track, uint cmd)
+		{
+			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(songPosition, track);
+			auto line = patt[patternPosition];
+			line.setCmd = true;
+			line.cmd = cmd & 0xf;
+			super(songPosition, patternPosition, track, [ line ], false);
+		}
+	}
+
+	class SetVolumeCommand : SwapLinesCommand
+	{
+		this(uint songPosition, uint patternPosition, uint track, Envelope which, uint vol)
+		{
+			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(songPosition, track);
+			auto line = patt[patternPosition];
+			line.setVol = true;
+			final switch (which)
+			{
+			case Envelope.primary:
+				line.vol = (line.vol & 0xf) | ((~vol & 0xf) << 4);
+				break;
+			case Envelope.secondary:
+				line.vol = (line.vol & 0xf0) | (~vol & 0xf);
+				break;
+			}
+			super(songPosition, patternPosition, track, [ line ], false);
 		}
 	}
 
