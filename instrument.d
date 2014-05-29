@@ -167,19 +167,19 @@ class InstrumentEditor : SubWindow
 			{
 				return changeVolume(Envelope.secondary, -1);
 			}
-			else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.ctrl | Modifiers.alt))
+			else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.ctrl))
 			{
 				return liftEnvelope(Envelope.primary, 1);
 			}
-			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.ctrl | Modifiers.alt))
+			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.ctrl))
 			{
 				return liftEnvelope(Envelope.primary, -1);
 			}
-			else if (km == KeyMod(SDLKey.SDLK_UP, Modifiers.shift | Modifiers.alt))
+			else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.shift))
 			{
 				return liftEnvelope(Envelope.secondary, 1);
 			}
-			else if (km == KeyMod(SDLKey.SDLK_DOWN, Modifiers.shift | Modifiers.alt))
+			else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.shift))
 			{
 				return liftEnvelope(Envelope.secondary, -1);
 			}
