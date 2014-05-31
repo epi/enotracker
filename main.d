@@ -248,6 +248,22 @@ private:
 			_patternEditor.draw();
 			return true;
 		}
+		// vvv temporary
+		else if (key == SDLKey.SDLK_F5 && _state.editing)
+		{
+			uint sp = _state.tmc.speed + 1;
+			if (sp > 9) sp = 1;
+			_state.tmc.speed = sp;
+			_infoEditor.draw();
+			return true;
+		}
+		else if (key == SDLKey.SDLK_F6 && _state.editing)
+		{
+			_state.tmc.fastplay = (_state.tmc.fastplay & 3) + 1;
+			_infoEditor.draw();
+			return true;
+		}
+		// ^^^ temporary
 		else if (key == SDLKey.SDLK_s && mod.packModifiers() == Modifiers.ctrl)
 		{
 			SubWindow previousWindow = _activeWindow;

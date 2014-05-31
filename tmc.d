@@ -523,7 +523,9 @@ class TmcFile
 	@property inout(Song) song() inout { return _song; }
 
 	@property ubyte speed() const { return _speed; }
+	@property void speed(uint s) { _speed = s & 0xf; }
 	@property ubyte fastplay() const { return _fastplay; }
+	@property void fastplay(uint s) { _fastplay = s & 0xf; }
 
 	@property const(char)[] title() const { return _title[]; }
 
