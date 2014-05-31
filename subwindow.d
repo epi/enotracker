@@ -57,9 +57,9 @@ class SubWindow
 	@property uint width() const pure nothrow { return _width; }
 	@property uint height() const pure nothrow { return _height; }
 
-protected:
 	abstract void draw();
 
+protected:
 	void text(uint fg, uint bg, uint x, uint y, in char[] t)
 	{
 		_surface.lock();

@@ -142,6 +142,18 @@ class PatternEditor : SubWindow
 			_state.track = _cursorX / 4;
 			goto redrawLine;
 		}
+		else if (km == KeyMod(SDLKey.SDLK_PAGEUP, Modifiers.ctrl))
+		{
+			_state.instrument = (_state.instrument - 1) & 0x3f;
+			next.draw(); // ugly hack
+			return true;
+		}
+		else if (km == KeyMod(SDLKey.SDLK_PAGEDOWN, Modifiers.ctrl))
+		{
+			_state.instrument = (_state.instrument + 1) & 0x3f;
+			next.draw(); // ugly hack
+			return true;
+		}
 		else if (!_state.followSong
 		      || _state.playing == State.Playing.nothing
 		      || _state.playing == State.Playing.note)
