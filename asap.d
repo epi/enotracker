@@ -267,6 +267,8 @@ class ASAPTmc
 		return milliseconds * 441 / 10;
 	}
 
+	uint MuteMask = 0;
+
 	/// Mutes the selected POKEY channels.
 	/// Params:
 	/// mask = An 8-bit mask which selects POKEY channels to be muted.
@@ -274,6 +276,7 @@ class ASAPTmc
 	{
 		this.Pokeys.BasePokey.Mute(mask);
 		this.Pokeys.ExtraPokey.Mute(mask >> 4);
+		this.MuteMask = mask;
 	}
 	int NextEventCycle;
 	private int NextPlayerCycle;
@@ -331,6 +334,7 @@ class ASAPTmc
 		this.Cpu.Vdi = 0;
 		this.Nmist = NmiStatus.OnVBlank;
 		this.Pokeys.Initialize(false, true);
+		uint mask = this.MuteMask;
 		this.MutePokeyChannels(255);
 
 		this.Do6502Init(this.PlayerAddr, 112, this.MusicAddr >> 8, this.MusicAddr);
@@ -338,7 +342,7 @@ class ASAPTmc
 			this.Do6502Init(this.PlayerAddr, 16, position, 0);
 		this.TmcPerFrameCounter = 1;
 
-		this.MutePokeyChannels(0);
+		this.MutePokeyChannels(mask);
 		this.NextPlayerCycle = 0;
 	}
 

@@ -80,6 +80,7 @@ class State
 	mixin(generateObservableProperty("uint", "patternPosition"));
 	mixin(generateObservableProperty("string", "fileName"));
 	mixin(generateObservableProperty("bool", "modified"));
+	mixin(generateObservableProperty("uint", "mutedChannels"));
 
 	void setSongAndPatternPosition(uint sp, uint pp)
 	{

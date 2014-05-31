@@ -145,7 +145,20 @@ class Player
 		_state.playing = State.Playing.nothing;
 	}
 
-	@property void state(State s) { _state = s; }
+	@property void state(State s)
+	{
+		_state = s;
+		s.addObserver("player", ()
+			{
+				if (_state.oldMutedChannels != _state.mutedChannels)
+				{
+					executeInAudioThread(()
+						{
+							_asap.MutePokeyChannels(_state.mutedChannels);
+						});
+				}
+			});
+	}
 
 private:
 	void executeInAudioThread(void delegate() cmd)
@@ -214,7 +227,10 @@ private:
 			event.patternPosition = cast(ubyte) pp;
 		}
 		foreach (chn; 0 .. 8)
-			event.channelVolumes[chn] = cast(ubyte) _asap.GetPokeyChannelVolume(chn);
+		{
+			event.channelVolumes[chn] = cast(ubyte) (_asap.MuteMask & (1 << chn)
+				? 0 : _asap.GetPokeyChannelVolume(chn));
+		}
 		SDL_PushEvent(cast(SDL_Event*) &event);
 	}
 

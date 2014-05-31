@@ -46,9 +46,13 @@ class SongEditor : SubWindow
 		box(0, 0, width, height, bgcolor);
 		box(0, 3 + _centerLine, width, 1,
 			active ? Color.ActiveHighlightBg : Color.InactiveHighlightBg);
-		uint hcolor = active ? Color.ActiveHighlightFg : Color.InactiveFg;
 		foreach (chn; 0 .. 8)
+		{
+			uint hcolor = active
+				? ((_state.mutedChannels & (1 << chn)) ? Color.ActiveFg : Color.ActiveHighlightFg)
+				: Color.InactiveFg;
 			textf(hcolor, 4 + chn * 6, 1, "Trac%s", chn + 1);
+		}
 		foreach (i; 0 .. height - 4)
 			drawLine(i, _state.songPosition - _centerLine + i);
 		if (active)
@@ -217,6 +221,11 @@ class SongEditor : SubWindow
 		{
 			_player.playSong(pos + 1 >= _state.tmc.song.length ? pos : pos + 1);
 			return false;
+		}
+		else if (key >= SDLKey.SDLK_1 && key <= SDLKey.SDLK_8 && mod == Modifiers.shift)
+		{
+			_state.mutedChannels = _state.mutedChannels ^ (1 << (key - SDLKey.SDLK_1));
+			goto redrawWindow;
 		}
 		else if (_state.editing)
 		{
