@@ -1,7 +1,7 @@
-src := main.d tmc.d sdl.d pattern.d song.d instrument.d oscilloscope.d subwindow.d asap.d player.d keys.d info.d state.d command.d filename.d
+src := gtkmain.d
 
-xtmc: $(src) default.fnt
-	dmd $(src) -g -J. -of$@
+xtmc: $(src)
+	dmd $(src) -g -J. -of$@ -L-lgtkd-2 -L-ldl
 
 unittest: $(src) default.fnt
 	dmd $(src) -g -debug -unittest -J. -of$@ && ./$@
