@@ -343,6 +343,20 @@ class PatternEditor : SubWindow
 					goto redrawWindow;
 				}
 			}
+			else if (km == KeyMod(SDLKey.SDLK_x, Modifiers.ctrl))
+			{
+				if (_selection != Selection.init)
+				{
+					auto pattern = _state.tmc.getPatternBySongPositionAndTrack(_state.songPosition, _cursorX / 4);
+					_clipboard = pattern[][_selection.begin .. _selection.end].dup;
+					auto cmd = this.new SwapLinesCommand(
+						_state.songPosition, _selection.begin, _cursorX / 4,
+						new Pattern.Line[_selection.end - _selection.begin], false);
+					_selection = Selection.init;
+					_state.history.execute(cmd);
+					goto redrawWindow;
+				}
+			}
 			else if (km == KeyMod(SDLKey.SDLK_INSERT, Modifiers.none))
 			{
 				auto patt = _state.tmc.getPatternBySongPositionAndTrack(_state.songPosition, _cursorX / 4);
