@@ -16,6 +16,7 @@ import core.memory;
 import std.stdio;
 import std.math;
 import std.datetime;
+import std.string;
 
 import glib.Timeout;
 
@@ -24,6 +25,88 @@ import cairo.Surface;
 
 import gtk.Widget;
 import gtk.DrawingArea;
+
+import ui.songeditor;
+import model.song;
+
+static import tmc;
+
+class TmcSongRow : ISongRow
+{
+	this(tmc.Song song, size_t row)
+	{
+		_song = song;
+		_row = row;
+	}
+
+	@property size_t length() const
+	{
+		return 8;
+	}
+
+	@property SongEntry opIndex(size_t i) const
+	{
+		tmc.SongEntry tse = _song[_row][i];
+		return SongEntry(tse.pattn, tse.transp);
+	}
+
+	@property void opIndexAssign(size_t i, SongEntry se)
+	{
+		tmc.SongEntry tse = tmc.SongEntry(cast(ubyte) se.pattern, cast(ubyte) se.transposition);
+		_song[_row][i] = tse;
+	}
+
+private:
+	tmc.Song _song;
+	size_t _row;
+}
+
+class TmcSongData : ISongData
+{
+	this(tmc.Song song)
+	{
+		_song = song;
+		_rows.length = _song.length;
+		foreach (i, ref row; _rows)
+			row = new TmcSongRow(_song, i);
+	}
+
+	@property size_t length() const
+	{
+		return _song.length;
+	}
+
+	@property size_t maxLength() const
+	{
+		return 127;
+	}
+
+	@property bool allowsTransposition() const
+	{
+		return true;
+	}
+
+protected:
+	inout(ISongRow) doOpIndex(size_t i) inout
+	{
+		return _rows[i];
+	}
+
+	void doInsertEmptyRows(size_t where, size_t count)
+	{
+		throw new Exception("Not implemented");
+	}
+
+	void doDeleteRows(size_t where, size_t count)
+	{
+		throw new Exception("Not implemented");
+	}
+
+private:
+	TmcSongRow[] _rows;
+
+	tmc.Song _song;
+}
 
 class FooWidget : DrawingArea
 {
@@ -58,10 +141,12 @@ protected:
 
 class TmcWindow : MainWindow
 {
- 	this()
- 	{
+	this()
+	{
 		super("enotracker");
 		setup();
+		this.setResizable(true);
+		this.setHasResizeGrip(true);
 		showAll();
 
 		string versionCompare = Version.checkVersion(3, 0, 0);
@@ -128,7 +213,7 @@ class TmcWindow : MainWindow
 
 		MenuBar menuBar = new MenuBar();
 
-		Menu menu = menuBar.append("_File");;
+		Menu menu = menuBar.append("_File");
 
 		MenuItem item = new MenuItem(&onMenuActivate, "_New","file.new", true, accelGroup, 'n');
 //		item.addAccelerator("activate",accelGroup,'n',GdkModifierType.CONTROL_MASK,GtkAccelFlags.VISIBLE);
@@ -152,7 +237,7 @@ class TmcWindow : MainWindow
 	void setup()
 	{
 		VBox mainBox = new VBox(false, 0);
-		
+
 		mainBox.packStart(getMenuBar(),false,false,0);
 		Notebook notebook = setNotebook();
 		notebook.setBorderWidth(0);
@@ -160,17 +245,21 @@ class TmcWindow : MainWindow
 		Statusbar statusbar = new Statusbar();
 		auto i = statusbar.getContextId("dupa");
 		statusbar.push(i, "Lorem ipsum dolor sit amet");
-
+		stderr.writeln(this.getHasResizeGrip());
 		mainBox.packStart(statusbar,false,true,0);
 		add(mainBox);
 
-		notebook.appendPage(new FooWidget(), "Cairo");
+		auto t = new tmc.TmcFile;
+		t.load(cast(immutable(ubyte)[]) std.file.read("mods/JAMSESS.TMC"));
+		auto se = new SongEditor(new TmcSongData(t.song));
+		notebook.appendPage(se, "song");
 		setDefaultSize(800, 600);
 	}
 }
 
 //private import gtkc.Loader;
 
+/+
 void main(string[] args)
 {
 	//Linker.dumpLoadLibraries();
@@ -191,4 +280,4 @@ void main(string[] args)
 	debug(1)writefln("before Main.run");
 	Main.run();
 	debug(1)writefln("after Main.run");
-}
+}+/

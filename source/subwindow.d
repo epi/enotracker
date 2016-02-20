@@ -24,11 +24,39 @@ import std.string;
 import sdl;
 public import sdl: Surface, SDLKey, SDLMod;
 
+class TextScreen
+{
+	this(uint width, uint height)
+	{
+		_width = width;
+		_height = height;
+		_chars = new char[width * height];
+	}
+
+	void opIndexAssign(char c, uint x, uint y)
+	{
+		_chars[y * width + x] = c;
+	}
+
+	char opIndex(uint x, uint y) const
+	{
+		return _chars[y * width + x];
+	}
+
+	@property uint width() const pure nothrow { return _width; }
+	@property uint height() const pure nothrow { return _height; }
+
+private:
+	uint _width;
+	uint _height;
+	char[] _chars;
+}
+
 class SubWindow
 {
-	this(Surface s, uint x, uint y, uint width, uint height)
+	this(TextScreen ts, uint x, uint y, uint width, uint height)
 	{
-		_surface = s;
+		_textScreen = ts;
 		_xo = x;
 		_yo = y;
 		_width = width;
@@ -62,13 +90,11 @@ protected:
 
 	void text(uint fg, uint bg, uint x, uint y, in char[] t)
 	{
-		_surface.lock();
-		scope(exit) _surface.unlock();
-		uint sx = (_xo + x) * 8;
-		uint sy = (_yo + y) * 8;
+//		_surface.lock();
+//		scope(exit) _surface.unlock();
 		foreach (char c; t)
 		{
-			uint addr = c * 8;
+/*			uint addr = c * 8;
 			foreach (l; 0 .. 8)
 			{
 				ubyte d = _font[addr + l];
@@ -77,8 +103,9 @@ protected:
 					_surface.putPixel(sx + p, sy + l, (d & 0x80) ? fg : bg);
 					d <<= 1;
 				}
-			}
-			sx += 8;
+			}*/
+			_textScreen[_xo + x, _yo + y] = c;
+			++x;
 		}
 	}
 
@@ -109,10 +136,10 @@ protected:
 
 	void box(uint x, uint y, uint w, uint h, uint col)
 	{
-		_surface.fillRect(
+/*		_surface.fillRect(
 			SDL_Rect(
 				cast(ushort) ((_xo + x) * 8), cast(ushort) ((_yo + y) * 8),
-				cast(ushort) (w * 8), cast(ushort) (h * 8)), col);
+				cast(ushort) (w * 8), cast(ushort) (h * 8)), col);*/
 	}
 
 	static uint rgbAverage(uint col1, uint col2)
@@ -122,7 +149,7 @@ protected:
 
 	void bar(uint x, uint y, uint vol, uint colbar, uint colbak, uint hshift = 0)
 	{
-		enum step = 2;
+/*		enum step = 2;
 		auto leftX = cast(ushort) ((_xo + x) * 8 + hshift);
 		auto topY = cast(ushort) ((_yo + y) * 8 - 15 * step);
 		auto botY = cast(ushort) (topY + 16 * step);
@@ -134,12 +161,12 @@ protected:
 		{
 			_surface.fillRect(SDL_Rect(leftX, cast(ushort) yy, 7, 1), colbar);
 			_surface.fillRect(SDL_Rect(leftX, cast(ushort) (yy + 1), 7, 1), avgCol);
-		}
+		}*/
 	}
 
 	void frame(int x, int y, int w, int h, uint col)
 	{
-		_surface.lock();
+/*		_surface.lock();
 		scope(exit) _surface.unlock();
 		int leftX = (_xo + x) * 8 - 2;
 		int rightX = (_xo + x + w) * 8 + 1;
@@ -159,14 +186,14 @@ protected:
 		{
 			_surface.putPixel(leftX, yy, col);
 			_surface.putPixel(rightX, yy, col);
-		}
+		}*/
 	}
 
 	uint fgcolor;
 	uint bgcolor;
 
 protected:
-	Surface _surface;
+	TextScreen _textScreen;
 	uint _xo;
 	uint _yo;
 
@@ -178,5 +205,5 @@ private:
 	SubWindow _next;
 	uint _width;
 	uint _height;
-	static _font = cast(immutable(ubyte)[]) import("default.fnt");
+	static ubyte[1024] _font; // = cast(immutable(ubyte)[]) import("default.fnt");
 }

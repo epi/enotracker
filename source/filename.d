@@ -26,7 +26,7 @@ import subwindow;
 
 class FileNameEditor : SubWindow
 {
-	this(Surface s, uint x, uint y, string currentName, void delegate(string, bool) closeHandler)
+	this(TextScreen s, uint x, uint y, string currentName, void delegate(string, bool) closeHandler)
 	{
 		enum w = 100;
 		enum h = 3;

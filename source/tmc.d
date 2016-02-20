@@ -158,7 +158,8 @@ align(1) struct SongEntry
 
 struct SongLine
 {
-	ref inout(SongEntry) opIndex(uint c) inout { return chan[7 - c]; }
+	ref inout(SongEntry) opIndex(size_t c) inout { return chan[7 - c]; }
+//	ref SongEntry opIndex(size_t c) { return chan[7 - c]; }
 
 	static immutable(SongLine) zero = { chan : [
 		SongEntry(0, 0), SongEntry(0, 0),
@@ -195,7 +196,7 @@ class Song
 	@property size_t length() pure nothrow const { return _lines.length; }
 	alias opDollar = length;
 
-	ref inout(SongLine) opIndex(size_t i) inout { return _lines[i]; }
+	auto ref inout(SongLine) opIndex(size_t i) inout { return _lines[i]; }
 	inout(SongLine)[] opSlice() inout { return _lines[]; }
 
 	void insert(size_t i, ref const(SongLine) line = SongLine.zero)

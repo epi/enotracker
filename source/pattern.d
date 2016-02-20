@@ -34,7 +34,7 @@ import tmc;
 
 class PatternEditor : SubWindow
 {
-	this(Surface s, uint x, uint y, uint h)
+	this(TextScreen s, uint x, uint y, uint h)
 	{
 		enum w = 4 + 12 * 8;
 		super(s, x, y, w, h);

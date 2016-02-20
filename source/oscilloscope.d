@@ -30,7 +30,7 @@ import tmc;
 
 class Oscilloscope : SubWindow
 {
-	this(Surface s, uint x, uint y, uint w, uint h)
+	this(TextScreen s, uint x, uint y, uint w, uint h)
 	{
 		super(s, x, y, w + 2, h * 2 + 3);
 		bgcolor = Color.box;
@@ -62,7 +62,7 @@ private:
 
 	void plot(uint x, uint y, in short[] samples)
 	{
-		int w = width - 2;
+/*		int w = width - 2;
 		int h = (height - 3) / 2;
 		
 		uint sampleToHpos(int sample)
@@ -94,7 +94,7 @@ private:
 			uint cur = sampleToHpos(0);
 			foreach (i; 0 .. w * 8)
 				_surface.putPixel((_xo + x) * 8 + i, cur, f);
-		}
+		} */
 	}
 
 	uint _currentInstr;

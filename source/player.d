@@ -22,6 +22,8 @@
 module player;
 
 import std.range;
+import std.algorithm : copy;
+import gdk.Threads;
 
 import core.atomic;
 import core.memory;
@@ -215,8 +217,15 @@ private:
 		}
 		foreach (chn; 0 .. 8)
 			event.channelVolumes[chn] = cast(ubyte) _asap.GetPokeyChannelVolume(chn);
-		SDL_PushEvent(cast(SDL_Event*) &event);
+//		SDL_PushEvent(cast(SDL_Event*) &event);
+		GC.disable();
+		scope(exit) GC.enable();
+		threadsEnter();
+		scope(exit) threadsLeave();
+		theActualFrameCallback(event);
 	}
+
+	public void delegate(ASAPFrameEvent event) theActualFrameCallback;
 
 	enum ASAPState
 	{

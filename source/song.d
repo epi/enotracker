@@ -32,7 +32,7 @@ import tmc;
 
 class SongEditor : SubWindow
 {
-	this(Surface s, uint x, uint y, uint h)
+	this(TextScreen s, uint x, uint y, uint h)
 	{
 		super(s, x, y, 52, h);
 		_maxLines = h - 4;

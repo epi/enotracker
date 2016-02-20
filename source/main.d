@@ -37,6 +37,32 @@ import state;
 import subwindow;
 import tmc;
 
+private import gtk.Main;
+private import gtk.MainWindow;
+private import gtk.MessageDialog;
+private import gtk.Version;
+
+import gtk.MenuBar;
+import gtk.AccelGroup;
+import gtk.Menu;
+import gtk.MenuItem;
+import gtk.VBox;
+import gtk.Widget;
+import gtk.Statusbar;
+import core.memory;
+
+import std.stdio;
+import std.math;
+import std.datetime;
+
+import glib.Timeout;
+
+import cairo.Context;
+import cairo.Surface;
+
+import gtk.Widget;
+import gtk.DrawingArea;
+
 class Enotracker
 {
 	private enum ScreenSize
@@ -47,8 +73,10 @@ class Enotracker
 
 	this()
 	{
-		_screen = new Screen(ScreenSize.width, ScreenSize.height, 32);
-		scope(failure) clear(_screen);
+		//_screen = new Screen(ScreenSize.width, ScreenSize.height, 32);
+		//scope(failure) clear(_screen);
+
+		_screen = new TextScreen(ScreenSize.width / 8, ScreenSize.height / 8);
 
 		// create and connect windows
 		_songEditor = new SongEditor(_screen, 1, 3, 20);
@@ -64,7 +92,7 @@ class Enotracker
 
 		// create and attach player
 		_player = new Player;
-		scope(failure) clear(_player);
+		scope(failure) destroy(_player);
 
 		_songEditor.player = _player;
 		_patternEditor.player = _player;
@@ -90,21 +118,21 @@ class Enotracker
 			});
 
 		// draw UI
-		_screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
+		//_screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
 		_songEditor.active = true;
 		_patternEditor.active = false;
 		_instrumentEditor.active = false;
 		_infoEditor.active = false;
 		_oscilloscope.active = false;
-		_screen.flip();
+		//_screen.flip();
 
 		_state.fileName = "";
 	}
 
 	~this()
 	{
-		clear(_screen);
-		clear(_player);
+		//clear(_screen);
+		destroy(_player);
 	}
 
 	void loadFile(string filename)
@@ -116,14 +144,14 @@ class Enotracker
 		_instrumentEditor.active = false;
 		_infoEditor.active = false;
 		_oscilloscope.active = false;
-		_screen.flip();
+		//_screen.flip();
 		_state.fileName = filename;
 		_state.history.setSavePoint();
 	}
 
 	void processEvents()
 	{
-		SDL_EnableKeyRepeat(500, 30);
+/*		SDL_EnableKeyRepeat(500, 30);
 		for (;;)
 		{
 			SDL_Event event;
@@ -172,13 +200,13 @@ class Enotracker
 					stderr.writeln(t.msg);
 				}
 			}
-		}
+		}*/
 	}
 
 private:
 	bool handleKeyDown(SDLKey key, SDLMod mod, wchar unicode)
 	{
-		if (key == SDLKey.SDLK_F7)
+/*		if (key == SDLKey.SDLK_F7)
 		{
 			_state.followSong = !_state.followSong;
 			return true;
@@ -277,10 +305,12 @@ private:
 			_activeWindow.active = true;
 			return true;
 		}
-		return _activeWindow.key(key, mod, unicode);
+		return _activeWindow.key(key, mod, unicode);*/
+		return false;
 	}
 
-	Screen _screen;
+	TextScreen _screen;
+	//Screen _screen;
 	SongEditor _songEditor;
 	PatternEditor _patternEditor;
 	InstrumentEditor _instrumentEditor;
@@ -290,6 +320,166 @@ private:
 	Player _player;
 	State _state;
 }
+
+class FooWidget : DrawingArea
+{
+public:
+	this(TextScreen ts)
+	{
+		_textScreen = ts;
+		//Attach our expose callback, which will draw the window.
+		addOnDraw(&drawCallback);
+	}
+
+protected:
+	char[] line;
+
+	//Override default signal handler:
+	bool drawCallback(scope Context cr, Widget widget)
+	{
+		GtkAllocation size;
+
+		getAllocation(size);
+		cr.scale(size.width / 800.0, size.height / 600.0);
+//		cr.save();
+			cr.setSourceRgba(0.0, 0.0, 0.0, 1.0);
+			cr.paint();
+			string _fontFamily = "DejaVu Sans Mono";
+			cr.selectFontFace(_fontFamily, cairo_font_slant_t.NORMAL, cairo_font_weight_t.BOLD);
+
+			cr.setSourceRgba(0.0, 1.0, 0.0, 1.0);
+			if (line.length < _textScreen.width)
+				line.length = _textScreen.width;
+			foreach (y; 0 .. _textScreen.height)
+			{
+				foreach (x; 0 .. _textScreen.width)
+				{
+					auto c = _textScreen[x, y];
+					line[x] = (c >= 0x20 && c <= 0x7e) ? c : ' ';
+				}
+				cr.moveTo(0, y * 10);
+				cr.showText(line.idup);
+			}
+//		cr.restore();
+
+
+		return true;
+	}
+
+	TextScreen _textScreen;
+	double m_radius = 0.40;
+	double m_lineWidth = 0.065;
+
+	Timeout m_timeout;
+}
+
+class EnotrackerWindow : MainWindow
+{
+	this(Enotracker eno)
+	{
+		super("enotracker");
+		_eno = eno;
+		_eno._player.theActualFrameCallback = (ASAPFrameEvent fevent)
+			{
+				with(_eno)
+				{
+					if (_state.followSong
+					 || (_state.playing == State.Playing.pattern || _state.playing == State.Playing.song))
+					{
+						_state.setSongAndPatternPosition(fevent.songPosition, fevent.patternPosition);
+					}
+				}
+				this.queueDrawArea(0, 0, _eno._screen.width * 8, _eno._screen.height * 10);
+			};
+		setup();
+		showAll();
+
+		string versionCompare = Version.checkVersion(3, 0, 0);
+
+		if (versionCompare.length > 0)
+		{
+			MessageDialog d = new MessageDialog(
+				this,
+				GtkDialogFlags.MODAL,
+				MessageType.WARNING,
+				ButtonsType.OK,
+				"GtkD : Gtk+ version missmatch\n" ~ versionCompare ~
+				"\nYou might run into problems!"
+				"\n\nPress OK to continue");
+			d.run();
+			d.destroy();
+		}
+	}
+
+	void onMenuActivate(MenuItem menuItem)
+	{
+		string action = menuItem.getActionName();
+		switch( action )
+		{
+			case "help.about":
+				_eno._player.playSong(0);
+				break;
+			default:
+				MessageDialog d = new MessageDialog(
+					this,
+					GtkDialogFlags.MODAL,
+					MessageType.INFO,
+					ButtonsType.OK,
+					"You pressed menu item "~action);
+				d.run();
+				d.destroy();
+			break;
+		}
+	}
+
+	MenuBar getMenuBar()
+	{
+		AccelGroup accelGroup = new AccelGroup();
+
+		addAccelGroup(accelGroup);
+
+		MenuBar menuBar = new MenuBar();
+
+		Menu menu = menuBar.append("_File");
+
+		MenuItem item = new MenuItem(&onMenuActivate, "_New","file.new", true, accelGroup, 'n');
+//		item.addAccelerator("activate",accelGroup,'n',GdkModifierType.CONTROL_MASK,GtkAccelFlags.VISIBLE);
+
+		menu.append(item);
+		menu.append(new MenuItem(&onMenuActivate, "_Open","file.open", true, accelGroup, 'o'));
+		menu.append(new MenuItem(&onMenuActivate, "_Close","file.close", true, accelGroup, 'c'));
+		menu.append(new MenuItem(&onMenuActivate, "E_xit","file.exit", true, accelGroup, 'x'));
+
+		menu = menuBar.append("_Edit");
+
+		menu.append(new MenuItem(&onMenuActivate,"_Find","edit.find", true, accelGroup, 'f'));
+		menu.append(new MenuItem(&onMenuActivate,"_Search","edit.search", true, accelGroup, 's'));
+
+		menu = menuBar.append("_Help");
+		menu.append(new MenuItem(&onMenuActivate,"_About","help.about", true, accelGroup, 'a',GdkModifierType.CONTROL_MASK|GdkModifierType.SHIFT_MASK));
+
+		return menuBar;
+	}
+
+	void setup()
+	{
+		VBox mainBox = new VBox(false, 0);
+
+		mainBox.packStart(getMenuBar(),false,false,0);
+		mainBox.packStart(new FooWidget(_eno._screen),true,true,0);
+		Statusbar statusbar = new Statusbar();
+		auto i = statusbar.getContextId("dupa");
+		statusbar.push(i, "Lorem ipsum dolor sit amet");
+
+		mainBox.packStart(statusbar,false,true,0);
+		add(mainBox);
+
+		setDefaultSize(800, 600);
+	}
+
+	Enotracker _eno;
+}
+
 
 void main(string[] args)
 {
@@ -301,8 +491,12 @@ void main(string[] args)
 	}
 
 	auto eno = new Enotracker;
-	scope(exit) clear(eno);
+	scope(exit) destroy(eno);
 	if (args.length > 1)
 		eno.loadFile(args[1]);
-	eno.processEvents();
+
+	Main.initMultiThread([]);
+	auto window = new EnotrackerWindow(eno);
+
+	Main.run();
 }

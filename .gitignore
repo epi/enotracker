@@ -1,9 +1,6 @@
+.dub
+docs.json
+__dummy.html
 *.o
-*.tmc
-*.tm4
-*.tm8
-*.TMC
-*.TM4
-*.TM8
+*.obj
 xtmc
-unittest

@@ -1,0 +1,7 @@
+name "xtmc"
+description "A minimal D application."
+copyright "Copyright © 2015, epi"
+authors "epi"
+dependency "gtk-d:gtkd" version="~>3.2.0"
+
+libs "SDL"

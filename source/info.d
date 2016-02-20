@@ -27,7 +27,7 @@ import tmc;
 
 class InfoEditor : SubWindow
 {
-	this(Surface s, uint x, uint y)
+	this(TextScreen s, uint x, uint y)
 	{
 		enum w = 47;
 		enum h = 4;

@@ -1,4 +1,4 @@
-src := gtkmain.d
+src := main.d tmc.d info.d filename.d song.d pattern.d instrument.d oscilloscope.d subwindow.d sdl.d command.d player.d state.d keys.d asap.d
 
 xtmc: $(src)
 	dmd $(src) -g -J. -of$@ -L-lgtkd-2 -L-ldl

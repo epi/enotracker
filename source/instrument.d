@@ -33,7 +33,7 @@ import tmc;
 
 class InstrumentEditor : SubWindow
 {
-	this(Surface s, uint x, uint y)
+	this(TextScreen s, uint x, uint y)
 	{
 		enum w = 21 + 1 + 2 + 1 + 2 + 2;
 		enum h = 4 * 2 + 1 + 4 + 2;
