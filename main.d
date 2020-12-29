@@ -20,10 +20,9 @@
 */
 
 import std.path : baseName;
-import std.string : toStringz;
+import std.string : toStringz, fromStringz;
 
 import asap;
-import filename;
 import info;
 import instrument;
 import keys;
@@ -36,12 +35,46 @@ import state;
 import subwindow;
 import tmc;
 
+extern(C) {
+
+enum nfdresult_t {
+    NFD_ERROR,       /* <<programmatic error */
+    NFD_OKAY,        /* <<user pressed okay, or successful return */
+    NFD_CANCEL       /* <<user pressed cancel */
+}
+
+nfdresult_t NFD_SaveDialog(const(char)* filterList, char* defaultPath, char** outPath);
+nfdresult_t NFD_OpenDialog(const(char)* filterList, char* defaultPath, char** outPath);
+}
+
 class Enotracker
 {
 	private enum ScreenSize
 	{
 		width = 816,
 		height = 616,
+	}
+
+	void initState()
+	{
+		_state = new State;
+		_songEditor.state = _state;
+		_patternEditor.state = _state;
+		_instrumentEditor.state = _state;
+		_infoEditor.state = _state;
+		_player.state = _state;
+		_state.addObserver("main", ()
+			{
+				if (_state.fileName != _state.oldFileName
+				 || _state.modified != _state.oldModified)
+				{
+					auto title = (_state.fileName.baseName()
+						~ (_state.modified ? " *" : "")
+						~ " - enotracker").toStringz();
+					SDL_WM_SetCaption(title, title);
+				}
+			});
+		_state.fileName = "";
 	}
 
 	this()
@@ -70,23 +103,7 @@ class Enotracker
 		_instrumentEditor.player = _player;
 
 		// create and attach editor state
-		_state = new State;
-		_songEditor.state = _state;
-		_patternEditor.state = _state;
-		_instrumentEditor.state = _state;
-		_infoEditor.state = _state;
-		_player.state = _state;
-		_state.addObserver("main", ()
-			{
-				if (_state.fileName != _state.oldFileName
-				 || _state.modified != _state.oldModified)
-				{
-					auto title = (_state.fileName.baseName()
-						~ (_state.modified ? " *" : "")
-						~ " - enotracker").toStringz();
-					SDL_WM_SetCaption(title, title);
-				}
-			});
+		initState();
 
 		// draw UI
 		_screen.fillRect(SDL_Rect(0, 0, ScreenSize.width, ScreenSize.height), 0x000000);
@@ -96,8 +113,6 @@ class Enotracker
 		_infoEditor.active = false;
 		_oscilloscope.active = false;
 		_screen.flip();
-
-		_state.fileName = "";
 	}
 
 	~this()
@@ -248,34 +263,58 @@ private:
 			_patternEditor.draw();
 			return true;
 		}
-		else if (key == SDLKey.SDLK_s && mod.packModifiers() == Modifiers.ctrl)
+		else if (key == SDLKey.SDLK_s &&
+			(mod.packModifiers() == Modifiers.ctrl && _state.fileName.length))
 		{
-			SubWindow previousWindow = _activeWindow;
-			auto fne = new FileNameEditor(_screen, 1, 73, _state.fileName,
-				(string newName, bool accepted)
+			import std.file: write;
+			try
+			{
+				write(_state.fileName, _state.tmc.save(0x2800, true));
+				_state.history.setSavePoint();
+			}
+			finally
+			{
+				_screen.flip();
+			}
+		}
+		else if (key == SDLKey.SDLK_s &&
+			((mod.packModifiers() == (Modifiers.ctrl | Modifiers.shift))
+			 || (mod.packModifiers() == Modifiers.ctrl && _state.fileName == "")))
+		{
+			import core.stdc.stdlib, std.file: write;
+			if (_state.playing != State.Playing.nothing)
+				_player.stop();
+			char* outPath;
+			nfdresult_t r = NFD_SaveDialog("tmc".toStringz, null, &outPath);
+			scope(exit) free(outPath);
+			if (r == nfdresult_t.NFD_OKAY) {
+				try
 				{
-					try
-					{
-						if (accepted)
-						{
-							import std.file: write;
-							write(newName, _state.tmc.save(0x2800, true));
-							_state.fileName = newName;
-							_state.history.setSavePoint();
-						}
-					}
-					finally
-					{
-						_activeWindow.active = false;
-						_activeWindow = _activeWindow.next;
-						_activeWindow.active = true;
-						_screen.flip();
-					}
-				});
-			fne.next = previousWindow;
-			_activeWindow = fne;
-			previousWindow.active = false;
-			_activeWindow.active = true;
+					string newName = fromStringz(outPath).idup;
+					write(newName, _state.tmc.save(0x2800, true));
+					_state.fileName = newName;
+					_state.history.setSavePoint();
+				}
+				finally
+				{
+					_screen.flip();
+				}
+			}
+			return true;
+		}
+		else if (key == SDLKey.SDLK_l && mod.packModifiers() == Modifiers.ctrl && !_state.modified)
+		{
+			import core.stdc.stdlib, std.file: write;
+			if (_state.playing != State.Playing.nothing)
+				_player.stop();
+			char* outPath;
+			nfdresult_t r = NFD_OpenDialog("tmc".toStringz, null, &outPath);
+			scope(exit) free(outPath);
+			if (r == nfdresult_t.NFD_OKAY) {
+				string newName = fromStringz(outPath).idup;
+				initState();
+				loadFile(newName);
+			}
 			return true;
 		}
 		return _activeWindow.key(key, mod, unicode);
@@ -292,7 +331,7 @@ private:
 	State _state;
 }
 
-void main(string[] args)
+void theMain(string[] args)
 {
 	version(unittest)
 	{
@@ -306,4 +345,27 @@ void main(string[] args)
 	if (args.length > 1)
 		eno.loadFile(args[1]);
 	eno.processEvents();
+}
+
+version(Windows)
+{
+	extern (Windows) int WinMain(void* hInstance, void* hPrevInstance, void* lpCmdLine, int nCmdShow)
+	{
+		try
+		{
+			theMain([]);
+		}
+		catch (Throwable t)
+		{
+			return 1;
+		}
+		return 0;
+	}
+}
+else
+{
+	void main(string[] args)
+	{
+		theMain(args);
+	}
 }
