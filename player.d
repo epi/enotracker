@@ -21,6 +21,7 @@
 
 module player;
 
+import std.algorithm;
 import std.range;
 
 import core.atomic;

@@ -488,15 +488,10 @@ private:
 			auto patt = this.outer._state.tmc.getPatternBySongPositionAndTrack(songPosition, track);
 			auto line = patt[patternPosition];
 			line.setVol = true;
-			final switch (which)
-			{
-			case Envelope.primary:
+			if (which == Envelope.primary)
 				line.vol = (line.vol & 0xf) | ((~vol & 0xf) << 4);
-				break;
-			case Envelope.secondary:
+			else if (which == Envelope.secondary)
 				line.vol = (line.vol & 0xf0) | (~vol & 0xf);
-				break;
-			}
 			super(songPosition, patternPosition, track, [ line ], false);
 		}
 	}

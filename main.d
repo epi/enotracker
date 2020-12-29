@@ -19,7 +19,6 @@
 	along with enotracker.  If not, see $(LINK http://www.gnu.org/licenses/).
 */
 
-import std.file : read, write;
 import std.path : baseName;
 import std.string : toStringz;
 
@@ -48,7 +47,7 @@ class Enotracker
 	this()
 	{
 		_screen = new Screen(ScreenSize.width, ScreenSize.height, 32);
-		scope(failure) clear(_screen);
+		scope(failure) _screen.destroy();
 
 		// create and connect windows
 		_songEditor = new SongEditor(_screen, 1, 3, 20);
@@ -64,7 +63,7 @@ class Enotracker
 
 		// create and attach player
 		_player = new Player;
-		scope(failure) clear(_player);
+		scope(failure) _player.destroy();
 
 		_songEditor.player = _player;
 		_patternEditor.player = _player;
@@ -103,13 +102,14 @@ class Enotracker
 
 	~this()
 	{
-		clear(_screen);
-		clear(_player);
+		_screen.destroy();
+		_player.destroy();
 	}
 
 	void loadFile(string filename)
 	{
-		auto content = cast(immutable(ubyte)[]) std.file.read(filename);
+		import std.file : read;
+		auto content = cast(immutable(ubyte)[]) read(filename);
 		_state.tmc.load(content);
 		_songEditor.active = true;
 		_patternEditor.active = false;
@@ -258,7 +258,8 @@ private:
 					{
 						if (accepted)
 						{
-							std.file.write(newName, _state.tmc.save(0x2800, true));
+							import std.file: write;
+							write(newName, _state.tmc.save(0x2800, true));
 							_state.fileName = newName;
 							_state.history.setSavePoint();
 						}
@@ -301,7 +302,7 @@ void main(string[] args)
 	}
 
 	auto eno = new Enotracker;
-	scope(exit) clear(eno);
+	scope(exit) eno.destroy();
 	if (args.length > 1)
 		eno.loadFile(args[1]);
 	eno.processEvents();
