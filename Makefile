@@ -1,7 +1,7 @@
 DC := ldc2
 CC := clang
 
-CFLAGS = -O2 -Wall -Wextra -fno-exceptions
+CFLAGS = -O2 -Wall -Wextra -fno-exceptions -DNDEBUG
 CXXFLAGS = -O2 -Wall -Wextra -fno-exceptions
 DFLAGS = -J. -O -release
 LDFLAGS = -L-lSDL
@@ -11,7 +11,7 @@ NFD = nativefiledialog/src
 ifeq ($(OS),Windows_NT)
 EXEEXT = .exe
 cobjs += nfd_win.obj nfd_common.obj
-LDFLAGS += -L-lmsvcrt -L/SUBSYSTEM:WINDOWS
+LDFLAGS += -L/SUBSYSTEM:WINDOWS
 else
 cobjs += nfd_gtk.o nfd_common.o
 CFLAGS += $(shell pkg-config --cflags gtk+-3.0)
