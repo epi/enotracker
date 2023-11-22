@@ -1,4 +1,5 @@
 *.o
+*.obj
 *.tmc
 *.tm4
 *.tm8
@@ -6,4 +7,5 @@
 *.TM4
 *.TM8
 xtmc
+xtmc.exe
 unittest
