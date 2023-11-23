@@ -36,7 +36,7 @@ unittest: $(src) default.fnt
 	$(DC) $(src) -g -debug -unittest -J. -of$@ && ./$@
 
 clean:
-	rm -f xtmc$(EXEEXT) unittest xtmc.o unittest.o
+	rm -f xtmc$(EXEEXT) unittest *.obj *.o
 .PHONY: clean
 
 .DELETE_ON_ERROR:
