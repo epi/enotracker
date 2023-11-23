@@ -32,7 +32,7 @@ nfd_win.obj: $(NFD)/nfd_win.cpp $(NFD)/include/nfd.h
 	$(CC) -c -I$(NFD)/include $(CFLAGS) $< -o $@
 
 unittest: $(src) default.fnt
-	$(DC) $(src) -g -debug -unittest -J. -of$@ && ./$@
+	$(DC) $(src) -g --d-debug -unittest -J. -of$@ && ./$@
 
 clean:
 	rm -f xtmc unittest xtmc.o unittest.o
