@@ -137,7 +137,7 @@ class Enotracker
 
 	void loadFile(string filename)
 	{
-		auto content = cast(immutable(ubyte)[]) std.file.read(filename);
+		auto content = cast(immutable(ubyte)[]) imported!`std.file`.read(filename);
 		_state.tmc.load(content);
 		_songEditor.active = true;
 		_patternEditor.active = false;
@@ -404,7 +404,7 @@ class EnotrackerWindow : MainWindow
 				MessageType.WARNING,
 				ButtonsType.OK,
 				"GtkD : Gtk+ version missmatch\n" ~ versionCompare ~
-				"\nYou might run into problems!"
+				"\nYou might run into problems!" ~
 				"\n\nPress OK to continue");
 			d.run();
 			d.destroy();

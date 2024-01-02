@@ -159,7 +159,7 @@ class TmcWindow : MainWindow
 				MessageType.WARNING,
 				ButtonsType.OK,
 				"GtkD : Gtk+ version missmatch\n" ~ versionCompare ~
-				"\nYou might run into problems!"
+				"\nYou might run into problems!" ~
 				"\n\nPress OK to continue");
 			d.run();
 			d.destroy();
@@ -250,7 +250,7 @@ class TmcWindow : MainWindow
 		add(mainBox);
 
 		auto t = new tmc.TmcFile;
-		t.load(cast(immutable(ubyte)[]) std.file.read("mods/JAMSESS.TMC"));
+		t.load(cast(immutable(ubyte)[]) imported!`std.file`.read("mods/JAMSESS.TMC"));
 		auto se = new SongEditor(new TmcSongData(t.song));
 		notebook.appendPage(se, "song");
 		setDefaultSize(800, 600);
