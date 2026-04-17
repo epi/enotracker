@@ -263,23 +263,29 @@ class Surface
 		pixels[(y * pSurf_.w) + x] = pixel;
 	}
 
-	void lock()
-	{
-		version(linux)
-		{
-			if (SDL_LockSurface(pSurf_) != 0)
-				throw new Exception("SDL_LockSurface failed");
-		}
-	}
+    void lock()
+    {
+        version(linux)
+        {
+            if (pSurf_ !is null && pSurf_.locked == 0)
+            {
+                if (SDL_LockSurface(pSurf_) != 0)
+                    throw new Exception("SDL_LockSurface failed");
+            }
+        }
+    }
 
-	void unlock()
-	{
-		version(linux)
-		{
-			if (SDL_UnlockSurface(pSurf_) != 0)
-				throw new Exception("SDL_UnlockSurface failed");
-		}
-	}
+    void unlock()
+    {
+        version(linux)
+        {
+            if (pSurf_ !is null && pSurf_.locked != 0)
+            {
+                if (SDL_UnlockSurface(pSurf_) != 0)
+                    throw new Exception("SDL_UnlockSurface failed");
+            }
+        }
+    }
 
 	void saveBMP(string filename)
 	{
